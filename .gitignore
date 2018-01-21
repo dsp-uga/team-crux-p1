@@ -1,6 +1,19 @@
 # MacOs Stuff 
 .ds_store
 
+# ignore the data except for very small 
+data/*
+!data/X_test_vsmall.txt
+!data/X_train_vsmall.txt
+!data/y_test_vsmall.txt
+!data/y_train_vsmall.txt
+
+ 
+# pycharm 
+.idea
+.idea/*
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
