@@ -59,7 +59,7 @@ See the [contributors](https://github.com/dsp-uga/team-crux-p1/contributors.md) 
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE) file for details
 
 ## Acknowledgments
 
