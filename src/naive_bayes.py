@@ -39,6 +39,35 @@ def document_to_word_vec(document_tuple):
     return tuples
 
 
+def add_one_to_aray ( class_count_array ):
+    """
+    addes one to the counts to get rid of the multiplied by zero problem 
+    
+    :param document_count_array: the input list to add ones to  
+    :return: an array with same structure as input, all items 
+    """
+    return class_count_array +1
+
+
+def calculate_priori ( class_word_frequency ):
+    """
+    
+    this function  turns the frequency into a priori 
+    
+    in naive baise implementation P(xi|yk) = Freq(xi) / Sum ( Freq(x)  )
+    if input is [1,1,1,1] out put will be [1/4,1/4,1/4,1/4]
+    
+    :param class_word_frequency:  an array with word frequency in each class 
+    :return: an array with priri calculated 
+    """
+
+    #calculate the total count
+    sum = np.sum( class_word_frequency )
+
+    return  class_word_frequency / sum()
+
+
+
 # TODO: we should come up with a good scheme for specifying the dataset via CL args rather than hardcoding them
 TRAINING_DOCUMENTS = "../data/X_train_vsmall.txt"
 TRAINING_LABELS = "../data/y_train_vsmall.txt"
@@ -79,6 +108,7 @@ labeled_documents = labeled_documents.mapValues(preprocess.remove_irrelevant_lab
 # remove training documents with no *CAT labels
 labeled_documents = labeled_documents.filter(lambda x: len(x[1]) > 0)
 
+
 TOTAL_DOCS = labeled_documents.count()  # we'll use this to compute the prior probability of a class
 
 # duplicate each example that has multiple labels
@@ -107,6 +137,16 @@ words = words.filter(lambda x: x[0] not in SW.value)
 class_counts = words.reduceByKey(lambda a, b: a + b)
 
 # TODO: class_counts holds how many times each word appears per class.  This should be all we need to compute prior probs and do classification!
+
+#  calculate the proriri - aka the training
+class_priori = class_counts.map(
+    lambda  x : ( x[0], calculate_priori(x[1]) )
+)
+
+
+# TODO: prediction function
+
+
 
 
 
