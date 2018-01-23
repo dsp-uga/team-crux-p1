@@ -35,15 +35,21 @@ def remove_html_character_references(word):
     return re.sub(regex, "", word)
 
 
-def strip_punctuation(word):
+def strip_punctuation(word  , end_only = False ):
     """
     Strips punctuation from the beginning and end of the provided word
 
     :param word: a string containing the word to be stripped
+    :param end_only: a boolean, if true only characters in the end will be considered 
     :return: the word with leading and trailing punctuation, digits, and whitespace removed
     """
     punctuation_characters = string.punctuation + string.whitespace + string.digits
-    return word.strip(punctuation_characters)
+
+    if( end_only ):
+        return word.strip(punctuation_characters)
+    else :
+        cleaner = str.maketrans("", "", punctuation_characters)
+        return word.translate(cleaner)
 
 
 def tokenize(line):
