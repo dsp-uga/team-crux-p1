@@ -1,4 +1,4 @@
-from preprocess import preprocess
+from .preprocess import Preprocess
 from pyspark import SparkContext
 
 sc  = SparkContext.getOrCreate()
@@ -6,7 +6,7 @@ sc  = SparkContext.getOrCreate()
 file  = sc.textFile( "../data/X_train_vsmall.txt" )
 
 
-p = preprocess()
+p = Preprocess()
 sl =sc.broadcast(  p.load_stop_words())
 
 print (sl)
