@@ -39,33 +39,35 @@ def document_to_word_vec(document_tuple):
     return tuples
 
 
-def add_one_to_aray ( class_count_array ):
+def add_one_to_aray(class_count_array):
+    # TODO: we may be better off doing this in the prediction function itself.
     """
-    addes one to the counts to get rid of the multiplied by zero problem 
+    Adds one to the counts to get rid of the multiplied by zero problem
     
     :param document_count_array: the input list to add ones to  
     :return: an array with same structure as input, all items 
     """
-    return class_count_array +1
+    return class_count_array + 1
 
 
-def calculate_priori ( class_word_frequency ):
+def calculate_prior_probability(class_word_frequency):
     """
+    Takes a word's class frequency vector and computes the prior probabilities
+    P( word | y ) for each document class y
     
-    this function  turns the frequency into a priori 
+    In Naive Bayes, P(x|yk) = Freq(x) / Sum_k ( Freq(x) )
+    if input is [1,1,1,1] output will be [1/4,1/4,1/4,1/4]
+    if input is [3,1,2,1] output will be [3/7, 1/7, 2/7, 1/7]
     
-    in naive baise implementation P(xi|yk) = Freq(xi) / Sum ( Freq(x)  )
-    if input is [1,1,1,1] out put will be [1/4,1/4,1/4,1/4]
-    
-    :param class_word_frequency:  an array with word frequency in each class 
-    :return: an array with priri calculated 
+    :param class_word_frequency:  term frequency vector where position i is the term frequency for class i
+    :return: an array with prior probabilities for each class
     """
 
-    #calculate the total count
+    # calculate the total occurrences of this word in all classes
     sum = np.sum( class_word_frequency )
 
-    return  class_word_frequency / sum()
-
+    # for each class y, calculate the probability of observing the word in that class
+    return class_word_frequency / sum
 
 
 # TODO: we should come up with a good scheme for specifying the dataset via CL args rather than hardcoding them
@@ -140,7 +142,7 @@ class_counts = words.reduceByKey(lambda a, b: a + b)
 
 #  calculate the proriri - aka the training
 class_priori = class_counts.map(
-    lambda  x : ( x[0], calculate_priori(x[1]) )
+    lambda x: ( x[0], calculate_prior_probability(x[1]) )
 )
 
 
