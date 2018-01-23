@@ -110,13 +110,8 @@ labeled_documents = labeled_documents.mapValues(preprocess.remove_irrelevant_lab
 # remove training documents with no *CAT labels
 labeled_documents = labeled_documents.filter(lambda x: len(x[1]) > 0)
 
-
-TOTAL_DOCS = labeled_documents.count()  # we'll use this to compute the prior probability of a class
-
 # duplicate each example that has multiple labels
 single_label_documents = labeled_documents.flatMap(preprocess.replicate_multilabel_document)
-
-# TODO we can use the single_label_documents RDD to count how many of each class there are
 
 # convert each document to a set of words with class-count vectors
 words = single_label_documents.flatMap(document_to_word_vec)
@@ -138,8 +133,6 @@ words = words.filter(lambda x: x[0] not in SW.value)
 # sum up counts
 class_counts = words.reduceByKey(lambda a, b: a + b)
 
-# TODO: class_counts holds how many times each word appears per class.  This should be all we need to compute prior probs and do classification!
-
 #  calculate the proriri - aka the training
 class_priori = class_counts.map(
     lambda x: ( x[0], calculate_prior_probability(x[1]) )
@@ -149,11 +142,15 @@ class_priori = class_counts.map(
 # TODO: prediction function
 
 
+TOTAL_DOCS = labeled_documents.count()  # we'll use this to compute the prior probability of a class
 
-
+# count how many of each class there are:
+classes = single_label_documents.map(lambda x: (x[1], 1))  # tuple (document_class, 1) for each document
+classes = classes.reduceByKey(lambda a, b: a + b)  # sum up the total number of each document class
+CLASS_COUNTS = dict(classes.collect())
 
 
 # DANGER: don't let this line run on big datasets!!!
 # this is just for testing.  We peek at the RDD to make sure it's formatted as expected
-class_counts.cache()
-class_counts.foreach(lambda x: print(x[0] + "\n" + str(x[1]) + "\n\n"))
+# class_counts.cache()
+# class_counts.foreach(lambda x: print(x[0] + "\n" + str(x[1]) + "\n\n"))
