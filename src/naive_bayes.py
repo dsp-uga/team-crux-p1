@@ -5,7 +5,7 @@ This script is a barebones implementation of a naive bayes classifier
 from pyspark import SparkContext
 import numpy as np
 import preprocess # as preprocess
-
+import utils
 
 def custom_zip(rdd1, rdd2):
     """
@@ -90,6 +90,7 @@ TRAINING_DOCUMENTS = "../data/X_train_vsmall.txt"
 TRAINING_LABELS = "../data/y_train_vsmall.txt"
 TESTING_DOCUMENTS = "../data/X_test_vsmall.txt"  # presumably unlabeled data
 TESTING_LABELS = "../data/y_test_vsmall.txt"
+OUTPUT_FILE = "../output/y_test_vsmal.txt"
 
 sc = SparkContext.getOrCreate()
 
@@ -237,3 +238,4 @@ pairs.foreach(lambda pair: print("Predicted %s, Actual: %s" % (pair[0], pair[1])
 print("Estimated accuracy: %s" % accuracy)
 
 # TODO need to optionally output the results to a file
+utils.save_to_file( result, OUTPUT_FILE )
