@@ -6,7 +6,7 @@ A
 
 from pyspark import SparkContext
 import numpy as np
-import src.preprocess as preprocess
+import preprocess # as preprocess
 
 
 def document_to_word_vec(document_tuple):
@@ -68,6 +68,25 @@ def calculate_prior_probability(class_word_frequency):
 
     # for each class y, calculate the probability of observing the word in that class
     return class_word_frequency / sum
+
+
+def remove_punctuation_from_list(inp):
+    """
+    this is a temporary function to clean list items 
+    :param inp: a list of words
+    :return: a cleaned list of words 
+    """
+    # TODO : replace this function with spark model1
+
+    inp = [preprocess.strip_punctuation(x) for x in inp]
+
+    ret = []
+    for x in inp:
+        if (len(x) > 0 and x not in ret):
+            ret.append(x.lower())
+
+    return ret
+
 
 
 # TODO: we should come up with a good scheme for specifying the dataset via CL args rather than hardcoding them
@@ -133,8 +152,10 @@ words = words.filter(lambda x: x[0] not in SW.value)
 # sum up counts
 class_counts = words.reduceByKey(lambda a, b: a + b)
 
-#  calculate the proriri - aka the training
-class_priori = class_counts.map(
+
+
+#  calculate the prorir - aka the training
+class_prior = class_counts.map(
     lambda x: ( x[0], calculate_prior_probability(x[1]) )
 )
 
@@ -143,13 +164,52 @@ class_priori = class_counts.map(
 
 
 TOTAL_DOCS = labeled_documents.count()  # we'll use this to compute the prior probability of a class
+TOTAL_DOCS_SINGLE_LABELED = single_label_documents.count() # we will use this count to calculate prior probability of each class since the counts are from list of docs with single label
 
 # count how many of each class there are:
-classes = single_label_documents.map(lambda x: (x[1], 1))  # tuple (document_class, 1) for each document
+classes = single_label_documents.map(lambda x: (x[1], 1.0 /TOTAL_DOCS_SINGLE_LABELED ))  # tuple (document_class, 1 / total count) for each document, it has been devided by the total count to get rid of future devision with more ittretions
 classes = classes.reduceByKey(lambda a, b: a + b)  # sum up the total number of each document class
-CLASS_COUNTS = dict(classes.collect())
+CLASS_COUNTS = dict(classes.collect()) # this is P(Y= y_k)
+
+print("***************",CLASS_COUNTS)
+
+test_x = sc.textFile( "../data/X_test_vsmall.txt" ) # load the test file
+test_y = sc.textFile("../data/y_test_vsmall.txt")
+
+test_x  = test_x.map( lambda x : preprocess.tokenize(x) ) # split into words
+
+test_x = test_x.map( lambda x : remove_punctuation_from_list(x) ) # remove punctuations from all items
+
+words_dic = dict(  class_prior.collect() ) # this is a bad  idea! create a lookup dictionary from the class counts
+
+test_y = test_y.collect()
+
+test_x = test_x.collect()
+
+hit  =0 # keep score on predictions
+
+labels = ["CCAT", "ECAT", "GCAT", "MCAT"]
+class_p = np.array(  [ CLASS_COUNTS[ x ] for x in labels ] )
+for i in range( len(test_x ) ):
+    doc = test_x[i]
+    gt = test_y[i]
+
+    ret =class_p # np.array(list(CLASS_COUNTS.values()))  # np.ones(4)
+
+    for x in doc:
+        xp = x.lower()
+        if (xp in words_dic.keys()):
+            ret = ret * (words_dic[xp] +1)
+
+    max_index = np.argmax( ret )
 
 
+    if( labels[max_index] in gt  ):
+        hit +=1
+
+    print( "Predicted : %s - GT: %s, Label Values : %s" % (  labels[max_index] ,   gt, str( ret) ))
+
+print ( "Accuracy :  %f " % (float(hit)/len( test_x )  ))
 # DANGER: don't let this line run on big datasets!!!
 # this is just for testing.  We peek at the RDD to make sure it's formatted as expected
 # class_counts.cache()
