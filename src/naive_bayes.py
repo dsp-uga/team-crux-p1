@@ -1,12 +1,33 @@
 """
 This script is a barebones implementation of a naive bayes classifier
-
-A
 """
 
 from pyspark import SparkContext
 import numpy as np
 import preprocess # as preprocess
+
+
+def custom_zip(rdd1, rdd2):
+    """
+    Custom zipping function for RDDs
+    The native PySpark zip() function sssumes that the two RDDs have the same number of partitions and the same number
+    of elements in each partition.  This zipper works without that assumption
+
+    The results should be identical to calling rdd1.zip(rdd2)
+
+    :param rdd1: the first rdd to zip
+    :param rdd2: the second rdd to zip
+    :return: a new rdd with key-value pairs where the keys are elements of the first rdd and values are
+            elements of the second rdd
+    """
+
+    # create keys for join
+    indexed_1 = rdd1.zipWithIndex().map(lambda x: (x[1], x[0]))
+    indexed_2 = rdd2.zipWithIndex().map(lambda x: (x[1], x[0]))
+
+    rdd_joined = indexed_1.join(indexed_2).map(lambda x: x[1])
+
+    return rdd_joined
 
 
 def document_to_word_vec(document_tuple):
@@ -39,53 +60,28 @@ def document_to_word_vec(document_tuple):
     return tuples
 
 
-def add_one_to_aray(class_count_array):
-    # TODO: we may be better off doing this in the prediction function itself.
+def calculate_conditional_probability(term_frequency_vector):
     """
-    Adds one to the counts to get rid of the multiplied by zero problem
-    
-    :param document_count_array: the input list to add ones to  
-    :return: an array with same structure as input, all items 
-    """
-    return class_count_array + 1
-
-
-def calculate_prior_probability(class_word_frequency):
-    """
-    Takes a word's class frequency vector and computes the prior probabilities
+    Takes a word's class frequency vector and computes the conditional probabilities
     P( word | y ) for each document class y
     
     In Naive Bayes, P(x|yk) = Freq(x) / Sum_k ( Freq(x) )
     if input is [1,1,1,1] output will be [1/4,1/4,1/4,1/4]
     if input is [3,1,2,1] output will be [3/7, 1/7, 2/7, 1/7]
     
-    :param class_word_frequency:  term frequency vector where position i is the term frequency for class i
+    :param term_frequency_vector:  term frequency vector where position i is the term frequency for class i
     :return: an array with prior probabilities for each class
     """
 
     # calculate the total occurrences of this word in all classes
-    sum = np.sum( class_word_frequency )
+    sum = np.sum( term_frequency_vector )
+
+    # make sure each word has a count of at least 1:
+    corrected_term_frequencies = term_frequency_vector + 1
+    sum += len(term_frequency_vector)  # to account for the "synthetic" words we're adding
 
     # for each class y, calculate the probability of observing the word in that class
-    return class_word_frequency / sum
-
-
-def remove_punctuation_from_list(inp):
-    """
-    this is a temporary function to clean list items 
-    :param inp: a list of words
-    :return: a cleaned list of words 
-    """
-    # TODO : replace this function with spark model1
-
-    inp = [preprocess.strip_punctuation(x) for x in inp]
-
-    ret = []
-    for x in inp:
-        if (len(x) > 0 and x not in ret):
-            ret.append(x.lower())
-
-    return ret
+    return corrected_term_frequencies / sum
 
 
 
@@ -93,6 +89,7 @@ def remove_punctuation_from_list(inp):
 TRAINING_DOCUMENTS = "../data/X_train_vsmall.txt"
 TRAINING_LABELS = "../data/y_train_vsmall.txt"
 TESTING_DOCUMENTS = "../data/X_test_vsmall.txt"  # presumably unlabeled data
+TESTING_LABELS = "../data/y_test_vsmall.txt"
 
 sc = SparkContext.getOrCreate()
 
@@ -103,7 +100,14 @@ classes = {
     "GCAT": 2,
     "MCAT": 3
 }
+class_indices = {
+    0: "CCAT",
+    1: "ECAT",
+    2: "GCAT",
+    3: "MCAT"
+}
 CLASSES = sc.broadcast(classes)
+CLASS_INDICES = sc.broadcast(class_indices)
 
 # read the stopwords files and broadcast the array of stopwords
 # TODO: make the stopwords file a command-line argument
@@ -118,7 +122,7 @@ file_contents = sc.textFile(TRAINING_DOCUMENTS)  # rdd where each entry is the c
 document_labels = sc.textFile(TRAINING_LABELS)  # each entry is a label corresponding to a document in the training set
 
 # join each document to its string of labels
-labeled_documents = file_contents.zip(document_labels)  # rdd with (document_contents, label_string) tuples
+labeled_documents = custom_zip(file_contents, document_labels)  # rdd with (document_contents, label_string) tuples
 
 # convert comma-delimited string of labels into an array of labels
 labeled_documents = labeled_documents.mapValues(lambda x: x.split(','))
@@ -152,65 +156,84 @@ words = words.filter(lambda x: x[0] not in SW.value)
 # sum up counts
 class_counts = words.reduceByKey(lambda a, b: a + b)
 
+# calculate the conditional probabilities P(x | y) for each word x
+conditional_word_probabilities = class_counts.map(
+    lambda x: ( x[0], calculate_conditional_probability(x[1]) )
+)
+CONDITIONAL_WORD_PROBABILITIES = sc.broadcast(dict(conditional_word_probabilities.collect()))
 
+TOTAL_DOCS = single_label_documents.count()
 
-#  calculate the prorir - aka the training
-class_prior = class_counts.map(
-    lambda x: ( x[0], calculate_prior_probability(x[1]) )
+# count how many of each class there are:
+classes = single_label_documents.map(lambda x: (x[1], 1))   # (class, 1) tuples
+classes = classes.reduceByKey(lambda a, b: a + b)  # sum up the total number of each document class
+marginal_class_probs = classes.map(lambda x: (x[0], x[1]/TOTAL_DOCS))  # convert from counts to marginal probabilities
+MARGINAL_CLASS_PROBS = sc.broadcast(   # this holds P(Y=k) for each class k
+    dict(marginal_class_probs.collect())
 )
 
 
-# TODO: prediction function
+# we now have all information needed to classify an unseen document:
+def classify(document):
+    """
+    Computes argmax_k P(Y=y_k) PRODUCT_i P(x_i | Y=y_k)
+    That is, this function takes the information from the training data and classifies the given document
+    by finding out which class k has the highest posterior probability
+
+    :param document: the document to classify
+    :return: the label of the predicted class
+    """
+    words = preprocess.tokenize(document)  # split the document into words
+    words = map(preprocess.remove_html_character_references, words)
+    words = map(preprocess.strip_punctuation, words)
+    words = map(lambda x: x.lower(), words)
+    words = filter(lambda x: x not in SW.value, words)
+
+    num_classes = len(CLASSES.value.keys())
+    marginal = np.zeros(num_classes)
+
+    # start with the marginal probability of each class
+    for class_label, marginal_probability in MARGINAL_CLASS_PROBS.value.items():
+        index = CLASSES.value[class_label]  # numeric index for this class
+        marginal[index] = np.log(marginal_probability)
+
+    # multiply the marginal probability of class y with the conditional probability of each word
+    posterior = marginal
+    for word in words:
+        if word in CONDITIONAL_WORD_PROBABILITIES.value:
+            conditional = CONDITIONAL_WORD_PROBABILITIES.value[word]
+        else:
+            # if the word has never been seen before
+            # TODO: need someone to check if this is the right thing to do
+            conditional = np.ones(num_classes) * 1/num_classes
+
+        posterior = posterior + np.log(conditional)
+
+    max_index = np.argmax(posterior)  # index of the class with the highest posterior probability
+    class_label = CLASS_INDICES.value[max_index]
+
+    return class_label
 
 
-TOTAL_DOCS = labeled_documents.count()  # we'll use this to compute the prior probability of a class
-TOTAL_DOCS_SINGLE_LABELED = single_label_documents.count() # we will use this count to calculate prior probability of each class since the counts are from list of docs with single label
+test_documents = sc.textFile(TESTING_DOCUMENTS)  # read in test data
+# the following makes a fairly big assumption that the test documents will be kept in order
+result = test_documents.map(lambda x: classify(x))
 
-# count how many of each class there are:
-classes = single_label_documents.map(lambda x: (x[1], 1.0 /TOTAL_DOCS_SINGLE_LABELED ))  # tuple (document_class, 1 / total count) for each document, it has been devided by the total count to get rid of future devision with more ittretions
-classes = classes.reduceByKey(lambda a, b: a + b)  # sum up the total number of each document class
-CLASS_COUNTS = dict(classes.collect()) # this is P(Y= y_k)
+test_labels = sc.textFile(TESTING_LABELS)\
+    .map(preprocess.split_by_comma)\
+    .map(preprocess.remove_irrelevant_labels)
 
-print("***************",CLASS_COUNTS)
+pairs = custom_zip(result, test_labels)
 
-test_x = sc.textFile( "../data/X_test_vsmall.txt" ) # load the test file
-test_y = sc.textFile("../data/y_test_vsmall.txt")
+correct = pairs.filter(lambda x: x[0] in x[1])
 
-test_x  = test_x.map( lambda x : preprocess.tokenize(x) ) # split into words
+total_test_examples = pairs.count()
+total_correct = correct.count()
 
-test_x = test_x.map( lambda x : remove_punctuation_from_list(x) ) # remove punctuations from all items
+accuracy = total_correct / total_test_examples
 
-words_dic = dict(  class_prior.collect() ) # this is a bad  idea! create a lookup dictionary from the class counts
+pairs.foreach(lambda pair: print("Predicted %s, Actual: %s" % (pair[0], pair[1]) ))
 
-test_y = test_y.collect()
+print("Estimated accuracy: %s" % accuracy)
 
-test_x = test_x.collect()
-
-hit  =0 # keep score on predictions
-
-labels = ["CCAT", "ECAT", "GCAT", "MCAT"]
-class_p = np.array(  [ CLASS_COUNTS[ x ] for x in labels ] )
-for i in range( len(test_x ) ):
-    doc = test_x[i]
-    gt = test_y[i]
-
-    ret =class_p # np.array(list(CLASS_COUNTS.values()))  # np.ones(4)
-
-    for x in doc:
-        xp = x.lower()
-        if (xp in words_dic.keys()):
-            ret = ret * (words_dic[xp] +1)
-
-    max_index = np.argmax( ret )
-
-
-    if( labels[max_index] in gt  ):
-        hit +=1
-
-    print( "Predicted : %s - GT: %s, Label Values : %s" % (  labels[max_index] ,   gt, str( ret) ))
-
-print ( "Accuracy :  %f " % (float(hit)/len( test_x )  ))
-# DANGER: don't let this line run on big datasets!!!
-# this is just for testing.  We peek at the RDD to make sure it's formatted as expected
-# class_counts.cache()
-# class_counts.foreach(lambda x: print(x[0] + "\n" + str(x[1]) + "\n\n"))
+# TODO need to optionally output the results to a file
