@@ -2,6 +2,8 @@
 This module contains miscellaneous utility functions
 """
 
+import os
+
 
 def custom_zip(rdd1, rdd2):
     """
@@ -38,7 +40,7 @@ def print_verbose(text, log_level, threshold=0):
         print(text)
 
 
-def wirte_ouput_to_file( output , filename  ):
+def write_ouput_to_file(output, filename):
     """
     writes the output to file, if the output is supplied in hte RDD form, it'll be collected, 
     otherwise it'll be written to file  
@@ -47,9 +49,13 @@ def wirte_ouput_to_file( output , filename  ):
     :return: 
     """
 
-    if ( not isinstance(output, list) ):
+    if not isinstance(output, list):
         output = output.collect()
 
-    with open (filename , "w" ) as file :
+    # ensure the ouput directory exists:
+    if not os.path.exists(os.path.dirname(filename)):
+        os.makedirs(os.path.dirname(filename))
+
+    with open(filename, "w" ) as file :
         file.write( "\n".join(output) )
         file.flush()

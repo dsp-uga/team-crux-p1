@@ -112,5 +112,4 @@ outpath = os.path.join(args.output, outfile)
 utils.print_verbose("Writing results to %s" % outpath,
                     threshold=1, log_level=args.verbose)
 
-# TODO: write output to outpath
-utils.wirte_ouput_to_file( result, args.output )
+utils.write_ouput_to_file( result, outpath )
