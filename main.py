@@ -8,6 +8,7 @@ import argparse
 import os.path
 
 from src.classifiers.NaiveBayes import NaiveBayesClassifier
+from src.classifiers.Majority import MajorityClassifier
 import src.utilities.utils as utils
 import src.utilities.preprocess as preprocess
 
@@ -46,7 +47,7 @@ parser.add_argument("-s", "--stopwords", default="stopwords/all.txt",
 parser.add_argument("-o", "--output", default="output",
     help="Path to the output directory where output file will be written. [DEFAULT: \"output/\"]")
 
-parser.add_argument("-c", "--classifier", default="naivebayes", choices=["naivebayes"],
+parser.add_argument("-c", "--classifier", default="naivebayes", choices=["naivebayes", "majority"],
     help="What type of classifier to train [DEFAULT: naivebayes]")
 
 parser.add_argument("-v", "--verbose", action="count",
@@ -61,6 +62,8 @@ sc = SparkContext.getOrCreate()
 stopwords = list(preprocess.load_stopwords(args.stopwords))
 if args.classifier == "naivebayes":
     classifier = NaiveBayesClassifier(sc, stopwords=stopwords)
+elif args.classifier == "majority":
+    classifier = MajorityClassifier()
 else:
     # use default classifier
     classifier = NaiveBayesClassifier(sc, stopwords=stopwords)
