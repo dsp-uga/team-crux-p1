@@ -49,7 +49,12 @@ parser.add_argument("-o", "--output", default="output",
 parser.add_argument("-c", "--classifier", default="naivebayes", choices=["naivebayes"],
     help="What type of classifier to train [DEFAULT: naivebayes]")
 
+parser.add_argument("-v", "--verbose", action="count",
+    help="Set verbosity level.  Level 0: no command-line output.  Level 1: status messages.  Level 2: Classification details.")
+
 args = parser.parse_args()
+if args.verbose is None:
+    args.verbose = 0
 
 sc = SparkContext.getOrCreate()
 
@@ -73,7 +78,7 @@ labeled_documents = labeled_documents.filter(lambda x: len(x[1]) > 0)
 single_label_documents = labeled_documents.flatMap(preprocess.replicate_multilabel_document)
 single_label_documents.cache()
 
-print("Training classifier............")
+utils.print_verbose("Training classifier...", threshold=1, log_level=args.verbose)
 classifier.train(single_label_documents)
 
 # classify new examples:
@@ -81,7 +86,8 @@ test_documents = sc.textFile(args.testset)
 result = classifier.classify(test_documents)
 
 if args.evaluate:
-    print("Evaluation Enabled, Testing classifier using labels from %s" % args.testlabels)
+    utils.print_verbose("Evaluation Enabled, Testing classifier using labels from %s" % args.testlabels,
+                        threshold=1, log_level=args.verbose)
     test_labels = sc.textFile(args.testlabels) \
         .map(preprocess.split_by_comma) \
         .map(preprocess.remove_irrelevant_labels)
@@ -92,17 +98,18 @@ if args.evaluate:
     total_correct = correct.count()
     accuracy = total_correct / total_test_examples
 
-    # pairs.foreach(lambda pair: print("Predicted %s, Actual: %s" % (pair[0], pair[1]) ))
+    # print classification results if requested
+    pairs.foreach(
+        lambda pair: utils.print_verbose("Predicted %s, Actual: %s" % (pair[0], pair[1]),
+                                         threshold=2, log_level=args.verbose )
+    )
 
-    print("Estimated accuracy: %s" % accuracy)
-
-print("Done classifying new documents!")
+    utils.print_verbose("Accuracy on test set: %s" % accuracy,
+                    threshold=1, log_level=args.verbose)
 
 outfile = "labels.txt"
 outpath = os.path.join(args.output, outfile)
-print("Writing results to %s" % outpath )
+utils.print_verbose("Writing results to %s" % outpath,
+                    threshold=1, log_level=args.verbose)
+
 # TODO: write output to outpath
-
-
-
-
