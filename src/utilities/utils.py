@@ -24,3 +24,15 @@ def custom_zip(rdd1, rdd2):
     rdd_joined = indexed_1.join(indexed_2).map(lambda x: x[1])
 
     return rdd_joined
+
+
+def print_verbose(text, log_level, threshold=0):
+    """
+    Conditionally prints text if the log_level meets or exceeds the provided threshold
+    :param text: text to print
+    :param log_level: the level of the text
+    :param threshold: the minimum log level needed for this text to be printed
+    :return:
+    """
+    if log_level >= threshold:
+        print(text)
