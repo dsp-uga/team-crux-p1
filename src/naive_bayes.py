@@ -15,6 +15,7 @@ def count_words(document):
     tokens = preprocess.tokenize(document)
     words = map(lambda x: preprocess.remove_html_character_references(x), tokens)
     words = map(lambda x: preprocess.strip_punctuation(x), words)
+    words = filter(lambda x: len(x) > 0, words)
     words = list(filter(lambda x: x not in SW.value, words))
 
     return len(words)
@@ -174,6 +175,8 @@ words = words.map(
 )
 # filter stopwords
 words = words.filter(lambda x: x[0] not in SW.value)
+# make sure we don't have any empty words:
+words = words.filter(lambda x: len(x[0]) > 0)
 
 # get vocabulary
 vocabulary = words.map(lambda x: x[0]).distinct()  # number of unique words in all docs
@@ -214,6 +217,7 @@ def classify(document):
     words = map(preprocess.remove_html_character_references, words)
     words = map(preprocess.strip_punctuation, words)
     words = map(lambda x: x.lower(), words)
+    words = filter(lambda x: len(x) > 0, words)
     words = filter(lambda x: x not in SW.value, words)
 
     num_classes = len(CLASSES.value.keys())
