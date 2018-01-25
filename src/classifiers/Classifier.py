@@ -1,5 +1,5 @@
 """
-This file defines an interface for our document classifiers
+Abstract base class for our document classifiers
 """
 
 
@@ -20,10 +20,12 @@ class Classifier:
 
     def classify(self, data):
         """
-        The classify method accepts a unlabeled dataset and returns a new dataset containing the predicted classes
-        The train method should always be called before classify
-
-        :param data: a Spark RDD where each entry is an unlabeled example
-        :return: a Spark RDD containing the predicted class of each item in the original dataset
+        Takes an RDD where each entry is a document and returns an RDD of class labels
+        :param data: an RDD of unlabeled documents
+        :return: an RDD with class labels for the unlabeled documents
         """
-        pass
+        if not self.has_been_trained:
+            print("WARNING: Attempting to classify new examples without training the classifier")
+
+        _classify = self._classify_function
+        return data.map(lambda doc: _classify(doc))

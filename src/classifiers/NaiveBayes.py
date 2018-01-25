@@ -152,15 +152,3 @@ class NaiveBayesClassifier(Classifier):
 
         self._classify_function = _classify_document
         self.has_been_trained = True
-
-    def classify(self, data):
-        """
-        Takes an RDD where each entry is a document and returns an RDD of class labels
-        :param data: an RDD of unlabeled documents
-        :return: an RDD with class labels for the unlabeled documents
-        """
-        if not self.has_been_trained:
-            print("WARNING: Attempting to classify new examples without training the classifier")
-
-        _classify = self._classify_function
-        return data.map(lambda doc: _classify(doc))
