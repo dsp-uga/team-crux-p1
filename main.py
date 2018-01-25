@@ -17,9 +17,9 @@ OUTPUT_FILE = "output/y_test_vsmal.txt"
 
 sc = SparkContext.getOrCreate()
 stopwords = []
-stopwords.extend(preprocess.load_stopwords("src/stopwords/generic.txt"))
-stopwords.extend(preprocess.load_stopwords("src/stopwords/html.txt"))
-stopwords.extend(preprocess.load_stopwords("src/stopwords/stanford.txt"))
+stopwords.extend(preprocess.load_stopwords("stopwords/generic.txt"))
+stopwords.extend(preprocess.load_stopwords("stopwords/html.txt"))
+stopwords.extend(preprocess.load_stopwords("stopwords/stanford.txt"))
 
 classifier = NaiveBayesClassifier(sc, stopwords=stopwords)
 
