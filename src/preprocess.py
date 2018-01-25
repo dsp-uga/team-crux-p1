@@ -6,7 +6,7 @@ import string
 import re
 
 
-def load_stop_words(path="stopwords/generic.txt"):
+def load_stopwords(path="stopwords/generic.txt"):
     """
     Create a list of stopwords from the target text file
     Stopwords will be stripped of whitespace and converted to lowercase

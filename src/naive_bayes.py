@@ -100,10 +100,10 @@ def calculate_conditional_probability(term_frequency_vector):
 
 
 # TODO: we should come up with a good scheme for specifying the dataset via CL args rather than hardcoding them
-TRAINING_DOCUMENTS = "../data/X_train_small.txt"
-TRAINING_LABELS = "../data/y_train_small.txt"
-TESTING_DOCUMENTS = "../data/X_test_small.txt"  # presumably unlabeled data
-TESTING_LABELS = "../data/y_test_small.txt"
+TRAINING_DOCUMENTS = "../data/X_train_vsmall.txt"
+TRAINING_LABELS = "../data/y_train_vsmall.txt"
+TESTING_DOCUMENTS = "../data/X_test_vsmall.txt"  # presumably unlabeled data
+TESTING_LABELS = "../data/y_test_vsmall.txt"
 OUTPUT_FILE = "../output/y_test_vsmal.txt"
 
 sc = SparkContext.getOrCreate()
@@ -127,9 +127,9 @@ CLASS_INDICES = sc.broadcast(class_indices)
 # read the stopwords files and broadcast the array of stopwords
 # TODO: make the stopwords file a command-line argument
 stopwords = []
-stopwords.extend(preprocess.load_stop_words("stopwords/generic.txt"))
-stopwords.extend(preprocess.load_stop_words("stopwords/html.txt"))
-stopwords.extend(preprocess.load_stop_words("stopwords/stanford.txt"))
+stopwords.extend(preprocess.load_stopwords("stopwords/generic.txt"))
+stopwords.extend(preprocess.load_stopwords("stopwords/html.txt"))
+stopwords.extend(preprocess.load_stopwords("stopwords/stanford.txt"))
 
 SW = sc.broadcast(stopwords)
 
@@ -181,6 +181,8 @@ words = words.filter(lambda x: len(x[0]) > 0)
 # get vocabulary
 vocabulary = words.map(lambda x: x[0]).distinct()  # number of unique words in all docs
 VOCAB_SIZE = sc.broadcast(vocabulary.count())
+
+print("\n\nVOCAB SIZE: %s \n\n" % VOCAB_SIZE.value)
 
 
 # sum up counts for class
