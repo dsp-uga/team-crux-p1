@@ -7,6 +7,18 @@ import numpy as np
 import preprocess # as preprocess
 import utils
 
+
+def count_words(document):
+    """
+    Counts the words in the provided document, excluding stop words
+    """
+    tokens = preprocess.tokenize(document)
+    words = map(lambda x: preprocess.remove_html_character_references(x), tokens)
+    words = map(lambda x: preprocess.strip_punctuation(x), words)
+    words = list(filter(lambda x: x not in SW.value, words))
+
+    return len(words)
+
 def custom_zip(rdd1, rdd2):
     """
     Custom zipping function for RDDs
@@ -63,33 +75,34 @@ def document_to_word_vec(document_tuple):
 def calculate_conditional_probability(term_frequency_vector):
     """
     Takes a word's class frequency vector and computes the conditional probabilities
-    P( word | y ) for each document class y
-    
-    In Naive Bayes, P(x|yk) = Freq(x) / Sum_k ( Freq(x) )
-    if input is [1,1,1,1] output will be [1/4,1/4,1/4,1/4]
-    if input is [3,1,2,1] output will be [3/7, 1/7, 2/7, 1/7]
+    P( term | i ) for each document class i
+
+    P( term | i) is estimated by the number of time the term occurs in class i divided by the total number of terms in i
     
     :param term_frequency_vector:  term frequency vector where position i is the term frequency for class i
-    :return: an array with prior probabilities for each class
+    :return: an array with the conditional probability P(term | i ) for each class i
     """
 
-    # calculate the total occurrences of this word in all classes
-    sum = np.sum( term_frequency_vector )
+    LAPLACE_ESTIMATOR = 1
+    corrected_term_frequencies = term_frequency_vector + LAPLACE_ESTIMATOR
 
-    # make sure each word has a count of at least 1:
-    corrected_term_frequencies = term_frequency_vector + 1
-    sum += len(term_frequency_vector)  # to account for the "synthetic" words we're adding
+    word_counts = np.zeros(len(CLASSES.value))  # this will hold the total number of words for each class i
+    for class_idx in np.arange(0, len(word_counts)):
+        class_label = CLASS_INDICES.value[class_idx]
+        words_in_class = LABEL_COUNTS.value[class_label]
+        # correct for addition of laplace estimator:
+        words_in_class += LAPLACE_ESTIMATOR * VOCAB_SIZE.value
+        word_counts[class_idx] = words_in_class
 
-    # for each class y, calculate the probability of observing the word in that class
-    return corrected_term_frequencies / sum
-
+    # compute marginal probabilities for each class
+    return np.divide(corrected_term_frequencies, word_counts)
 
 
 # TODO: we should come up with a good scheme for specifying the dataset via CL args rather than hardcoding them
-TRAINING_DOCUMENTS = "../data/X_train_vsmall.txt"
-TRAINING_LABELS = "../data/y_train_vsmall.txt"
-TESTING_DOCUMENTS = "../data/X_test_vsmall.txt"  # presumably unlabeled data
-TESTING_LABELS = "../data/y_test_vsmall.txt"
+TRAINING_DOCUMENTS = "../data/X_train_small.txt"
+TRAINING_LABELS = "../data/y_train_small.txt"
+TESTING_DOCUMENTS = "../data/X_test_small.txt"  # presumably unlabeled data
+TESTING_LABELS = "../data/y_test_small.txt"
 OUTPUT_FILE = "../output/y_test_vsmal.txt"
 
 sc = SparkContext.getOrCreate()
@@ -137,6 +150,14 @@ labeled_documents = labeled_documents.filter(lambda x: len(x[1]) > 0)
 # duplicate each example that has multiple labels
 single_label_documents = labeled_documents.flatMap(preprocess.replicate_multilabel_document)
 
+single_label_documents.cache()
+
+# find the total number of words for each label
+label_counts = single_label_documents.map(lambda x: (x[1], count_words(x[0])))  \
+                .reduceByKey(lambda a, b: a + b)
+
+LABEL_COUNTS = sc.broadcast(dict(label_counts.collect()))
+
 # convert each document to a set of words with class-count vectors
 words = single_label_documents.flatMap(document_to_word_vec)
 # remove html character references
@@ -154,7 +175,12 @@ words = words.map(
 # filter stopwords
 words = words.filter(lambda x: x[0] not in SW.value)
 
-# sum up counts
+# get vocabulary
+vocabulary = words.map(lambda x: x[0]).distinct()  # number of unique words in all docs
+VOCAB_SIZE = sc.broadcast(vocabulary.count())
+
+
+# sum up counts for class
 class_counts = words.reduceByKey(lambda a, b: a + b)
 
 # calculate the conditional probabilities P(x | y) for each word x
@@ -238,4 +264,4 @@ pairs.foreach(lambda pair: print("Predicted %s, Actual: %s" % (pair[0], pair[1])
 print("Estimated accuracy: %s" % accuracy)
 
 # TODO need to optionally output the results to a file
-utils.save_to_file( result, OUTPUT_FILE )
+# utils.save_to_file( result, OUTPUT_FILE )
