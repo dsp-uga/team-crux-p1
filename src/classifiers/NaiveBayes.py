@@ -125,13 +125,6 @@ class NaiveBayesClassifier(Classifier):
             :param document: the document to classify
             :return: the label of the predicted class
             """
-            words = preprocess.tokenize(document)  # split the document into words
-            words = map(preprocess.remove_html_character_references, words)
-            words = map(preprocess.strip_punctuation, words)
-            words = map(lambda x: x.lower(), words)
-            words = filter(lambda x: len(x) > 0, words)
-            words = filter(lambda x: x not in _SW.value, words)
-
             num_classes = len(_CLASSES.value)
 
             posterior = np.zeros(num_classes)
@@ -142,11 +135,16 @@ class NaiveBayesClassifier(Classifier):
             posterior += np.log(marginals)
 
             # for each word, add log of word probability
-            for word in words:
-                if word in CONDITIONAL_TERM_PROBABILITY.value:  # if we have seen this word in training
-                    conditional_prob = CONDITIONAL_TERM_PROBABILITY.value[word]
-                    posterior += np.log(conditional_prob)
-                # if we haven't see the word in training, we can ignore it
+            tokens = preprocess.tokenize(document)
+            for token in tokens:
+                word = preprocess.remove_html_character_references(token)
+                word = preprocess.strip_punctuation(word).lower()
+                if word not in _SW.value and len(word) > 0:  # then it's actually a word we want to consider
+                    # if we have seen this word in training
+                    if word in CONDITIONAL_TERM_PROBABILITY.value:
+                        conditional_prob = CONDITIONAL_TERM_PROBABILITY.value[word]
+                        posterior += np.log(conditional_prob)
+                    # if we haven't see the word in training, we can ignore it
 
             class_index = np.argmax(posterior)  # index of the class with the highest posterior probability
             class_label = _CLASS_INDICES.value[class_index]
