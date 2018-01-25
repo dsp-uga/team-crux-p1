@@ -1,3 +1,8 @@
+"""
+This module contains miscellaneous utility functions
+"""
+
+
 def custom_zip(rdd1, rdd2):
     """
     Custom zipping function for RDDs

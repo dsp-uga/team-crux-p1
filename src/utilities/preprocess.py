@@ -1,5 +1,6 @@
 """
-The preprocess module contains function definitions that are helpful in pre-processing text from example documents
+Preprocessing module
+Contains functions which are helpful for preprocessing text
 """
 
 import string

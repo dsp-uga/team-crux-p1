@@ -1,7 +1,8 @@
-import src.preprocess as preprocess
-from .Classifier import Classifier
 import pyspark
 import numpy as np
+
+from .Classifier import Classifier
+import src.utilities.preprocess as preprocess
 
 
 class NaiveBayesClassifier(Classifier):
