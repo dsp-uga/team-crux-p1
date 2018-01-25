@@ -36,3 +36,20 @@ def print_verbose(text, log_level, threshold=0):
     """
     if log_level >= threshold:
         print(text)
+
+
+def wirte_ouput_to_file( output , filename  ):
+    """
+    writes the output to file, if the output is supplied in hte RDD form, it'll be collected, 
+    otherwise it'll be written to file  
+    :param output: the list or RDD to be written to file  
+    :param filename:  File name to write the file to
+    :return: 
+    """
+
+    if ( not isinstance(output, list) ):
+        output = output.collect()
+
+    with open (filename , "w" ) as file :
+        file.write( "\n".join(output) )
+        file.flush()
