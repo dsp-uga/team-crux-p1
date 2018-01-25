@@ -5,7 +5,7 @@ This file defines an interface for our document classifiers
 
 class Classifier:
     def __init__(self):
-        self.classify_function = None  # function used to classify a single example - will be defined after training
+        self._classify_function = None  # function used to classify a single example - will be defined after training
         self.has_been_trained = False
 
     def train(self, data):

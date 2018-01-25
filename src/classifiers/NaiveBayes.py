@@ -14,6 +14,7 @@ class NaiveBayesClassifier(Classifier):
         """
         Classifier.__init__(self)
         self.sc = spark_context
+        self._classify_function = lambda x: 'CCAT'  # default classification function
 
         # mapping from class label to numeric index
         self.CLASSES = self.sc.broadcast({
@@ -114,7 +115,7 @@ class NaiveBayesClassifier(Classifier):
         CONDITIONAL_TERM_PROBABILITY = self.sc.broadcast(dict(conditional_term_probabilities.collect()))
 
         # finally, we can build the classification function:
-        def _classify(document):
+        def _classify_document(document):
             """
             Computes argmax_k P(Y=y_k) PRODUCT_i P(x_i | Y=y_k)
             That is, this function takes the information from the training data and classifies the given document
@@ -142,7 +143,7 @@ class NaiveBayesClassifier(Classifier):
             # for each word, add log of word probability
             for word in words:
                 if word in CONDITIONAL_TERM_PROBABILITY.value:  # if we have seen this word in training
-                    conditional_prob = CONDITIONAL_TERM_PROBABILITY[word]
+                    conditional_prob = CONDITIONAL_TERM_PROBABILITY.value[word]
                     posterior += np.log(conditional_prob)
                 # if we haven't see the word in training, we can ignore it
 
@@ -150,5 +151,17 @@ class NaiveBayesClassifier(Classifier):
             class_label = _CLASS_INDICES.value[class_index]
             return class_label
 
-        self.classify_function = _classify
+        self._classify_function = _classify_document
         self.has_been_trained = True
+
+    def classify(self, data):
+        """
+        Takes an RDD where each entry is a document and returns an RDD of class labels
+        :param data: an RDD of unlabeled documents
+        :return: an RDD with class labels for the unlabeled documents
+        """
+        if not self.has_been_trained:
+            print("WARNING: Attempting to classify new examples without training the classifier")
+
+        _classify = self._classify_function
+        return data.map(lambda doc: _classify(doc))
