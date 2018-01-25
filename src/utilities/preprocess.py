@@ -1,12 +1,13 @@
 """
-The preprocess module contains function definitions that are helpful in pre-processing text from example documents
+Preprocessing module
+Contains functions which are helpful for preprocessing text
 """
 
 import string
 import re
 
 
-def load_stop_words(path="stopwords/generic.txt"):
+def load_stopwords(path="stopwords/generic.txt"):
     """
     Create a list of stopwords from the target text file
     Stopwords will be stripped of whitespace and converted to lowercase
@@ -35,7 +36,7 @@ def remove_html_character_references(word):
     return re.sub(regex, "", word)
 
 
-def strip_punctuation(word  , end_only = False ):
+def strip_punctuation(word, end_only=False):
     """
     Strips punctuation from the beginning and end of the provided word
 
@@ -45,9 +46,9 @@ def strip_punctuation(word  , end_only = False ):
     """
     punctuation_characters = string.punctuation + string.whitespace + string.digits
 
-    if( end_only ):
+    if end_only:
         return word.strip(punctuation_characters)
-    else :
+    else:
         cleaner = str.maketrans("", "", punctuation_characters)
         return word.translate(cleaner)
 
@@ -62,11 +63,41 @@ def tokenize(line):
     return line.split()
 
 
-def remove_irrelevant_labels(label):
+def split_by_comma(line):
     """
-    Tests if the provided label is one that we "care" about.  That is, one of the top-level "*CAT" labels
-    :param label: the label to test
-    :return: True if the label is a *CAT label, False otherwise
+    Converts the given line of text into comma-delimited tokens
+
+    :param line: the line of text to process
+    :return: an array of tokens contained in the line of text
     """
-    return "CAT" in label.upper()
+    return line.split(",")
+
+
+def remove_irrelevant_labels(labels):
+    """
+    Filters an array of labels, removing non "CAT" labels
+
+    :param labels: array of labels
+    :return: an array of labels containing only the top-level "CAT" labels
+    """
+    filtered = filter(lambda x: "CAT" in x.upper(), labels)
+    return list(filtered)
+
+
+def replicate_multilabel_document(document_tuple):
+    """
+    Takes a document and a set of labels and returns multiple copies of that document - each with a single label
+    For example, if we pass ('foo', ['a', 'b']) to this function, then it will return
+        [ ('foo', 'a'), ('foo', 'b') ]
+
+    :param document_tuple: (document, array_of_labels)
+    :return: array of (document, label) pairs
+    """
+    document_contents, labels = document_tuple
+
+    single_label_documents = []
+    for label in labels:
+        single_label_documents.append((document_contents, label))
+
+    return single_label_documents
 
