@@ -99,7 +99,9 @@ class NaiveBayesClassifier(Classifier):
             :param arr: A NumPy Array
             :return: True if all the elements in the array are equal, False otherwise
             """
-            return np.array_equal(np.repeat(arr[0], len(_CLASSES.value)), arr)
+
+            return np.std(arr  ) <= 0.5
+            # return np.array_equal(np.repeat(arr[0], len(_CLASSES.value)), arr)
 
 
         if( self.dump_word_in_class_Freq != None):
