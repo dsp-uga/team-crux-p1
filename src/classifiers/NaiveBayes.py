@@ -65,7 +65,6 @@ class NaiveBayesClassifier(Classifier):
         vocab = words.map(lambda x: x[1]).distinct()
         VOCAB_SIZE = self.sc.broadcast(vocab.count())
 
-
         # now we need to count up how many times each word appears in each class
         _CLASSES = self.CLASSES
         _CLASS_INDICES = self.CLASS_INDICES
@@ -87,20 +86,21 @@ class NaiveBayesClassifier(Classifier):
         term_freqencies = words.map(_word_tuple_to_class_vec)
         term_freqencies = term_freqencies.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
 
-        def check_duplication(inp):
+        def check_duplication(arr):
             """
-            check if cvalues in an array are equal
-            if [1,1,1,1] is entered, the function will return False.
-            :param inp: A NumPy Array
-            :return: true  if all the elements in the array are equal, false otherwise 
+            Checks if all values in a vector are equal
+            E.g. if [1,1,1,1] is given, the function will return True
+            :param arr: A NumPy Array
+            :return: True if all the elements in the array are equal, False otherwise
             """
-            return np.array_equal(np.repeat(inp[0], len(_CLASSES.value)), inp)
+            return np.array_equal(np.repeat(arr[0], len(_CLASSES.value)), arr)
 
         # find words with equal frequency in all classes
+        # Note: this is a form of feature selection - we remove meaningless features
         useless_words  = term_freqencies.filter(lambda x: check_duplication(x[1])).map( lambda x:x[0])
-        useless_words = self.sc.broadcast( useless_words.collect() )
+        useless_words = self.sc.broadcast( useless_words.collect())
 
-        util.print_verbose("Found  %d words with similar counts " % len(useless_words.value), 1)
+        util.print_verbose("Found %d words with similar counts " % len(useless_words.value), 1)
 
         # remove words with equal freq in all classes
         words = words.filter( lambda  x: not x[1] in useless_words.value)
@@ -111,25 +111,15 @@ class NaiveBayesClassifier(Classifier):
         # CLASS_WORD_COUNTS maps class c to the total number of words in all docs of class c
         CLASS_WORD_COUNTS = self.sc.broadcast(dict(class_words.collect()))
 
-        # calcualte number of words to be used in probabilty calculation
-        # TODO : check if this is nesasary. ( if order is preserved in the initial count it's not required )
-        # total_words = np.zeros(len(_CLASSES.value))
-        # for class_idx in np.arange(0, len(_CLASSES.value)):
-        #     class_label = _CLASS_INDICES.value[class_idx]
-        #     total_words_in_class = CLASS_WORD_COUNTS.value[class_label]
-        #     total_words[class_idx] = total_words_in_class
-
-
-        # Temporary fix for issue #18
+        # fix for issue #18
         _TOTAL_WORDS = self.sc.broadcast(np.array([
             CLASS_WORD_COUNTS.value ["CCAT"],
             CLASS_WORD_COUNTS.value["ECAT"],
             CLASS_WORD_COUNTS.value["GCAT"],
             CLASS_WORD_COUNTS.value["MCAT"]
+        ]))
 
-        ] ) )
-
-            # compute conditional probabilities P(word | class)
+        # compute conditional probabilities P(word | class)
         def _term_freq_to_conditional_prob(x):
             """
             Takes a (word, class_count_vector) tuple and converts it to a (word, conditional_prob_vector) tuple
