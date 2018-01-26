@@ -113,13 +113,21 @@ class NaiveBayesClassifier(Classifier):
 
         # calcualte number of words to be used in probabilty calculation
         # TODO : check if this is nesasary. ( if order is preserved in the initial count it's not required )
-        total_words = np.zeros(len(_CLASSES.value))
-        for class_idx in np.arange(0, len(_CLASSES.value)):
-            class_label = _CLASS_INDICES.value[class_idx]
-            total_words_in_class = CLASS_WORD_COUNTS.value[class_label]
-            total_words[class_idx] = total_words_in_class
+        # total_words = np.zeros(len(_CLASSES.value))
+        # for class_idx in np.arange(0, len(_CLASSES.value)):
+        #     class_label = _CLASS_INDICES.value[class_idx]
+        #     total_words_in_class = CLASS_WORD_COUNTS.value[class_label]
+        #     total_words[class_idx] = total_words_in_class
 
-        _TOTAL_WORDS = self.sc.broadcast(total_words )
+
+        # Temporary fix for issue #18
+        _TOTAL_WORDS = self.sc.broadcast(np.array([
+            CLASS_WORD_COUNTS.value ["CCAT"],
+            CLASS_WORD_COUNTS.value["ECAT"],
+            CLASS_WORD_COUNTS.value["GCAT"],
+            CLASS_WORD_COUNTS.value["MCAT"]
+
+        ] ) )
 
             # compute conditional probabilities P(word | class)
         def _term_freq_to_conditional_prob(x):
