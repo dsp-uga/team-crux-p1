@@ -3,7 +3,7 @@ This module contains miscellaneous utility functions
 """
 
 import os
-
+import logging
 
 def custom_zip(rdd1, rdd2):
     """
@@ -36,6 +36,10 @@ def print_verbose(text, log_level, threshold=0):
     :param threshold: the minimum log level needed for this text to be printed
     :return:
     """
+
+    # log the records
+    logging.info(text)
+
     if log_level >= threshold:
         print(text)
 

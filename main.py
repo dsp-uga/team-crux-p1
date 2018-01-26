@@ -6,6 +6,7 @@ Reads command line arguments, classifies some documents, then (optionally) write
 from pyspark import SparkContext
 import argparse
 import os.path
+import logging
 
 from src.classifiers.NaiveBayes import NaiveBayesClassifier
 from src.classifiers.Majority import MajorityClassifier
@@ -52,6 +53,21 @@ parser.add_argument("-c", "--classifier", default="naivebayes", choices=["naiveb
 
 parser.add_argument("-v", "--verbose", action="count",
     help="Set verbosity level.  Level 0: no command-line output.  Level 1: status messages.  Level 2: Classification details.")
+
+parser.add_argument("-v", "--verbose", action="count",
+    help="Set verbosity level.  Level 0: no command-line output.  Level 1: status messages.  Level 2: Classification details.")
+
+args = parser.parse_args()
+if args.verbose is None:
+    args.verbose = 0
+
+# configure logger ( the file comes from input and is overwritten  )
+logging.basicConfig(filename=args.logfile,
+                    level=logging.INFO ,
+                    filemode="w",
+                    format='%(asctime)s - %(module)s.%(funcName)s - %(levelname)s :  %(message)s') # time  where it came from - LEVEL : Message
+
+
 
 args = parser.parse_args()
 if args.verbose is None:
