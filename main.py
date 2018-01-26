@@ -54,8 +54,8 @@ parser.add_argument("-c", "--classifier", default="naivebayes", choices=["naiveb
 parser.add_argument("-v", "--verbose", action="count",
     help="Set verbosity level.  Level 0: no command-line output.  Level 1: status messages.  Level 2: Classification details.")
 
-parser.add_argument("-v", "--verbose", action="count",
-    help="Set verbosity level.  Level 0: no command-line output.  Level 1: status messages.  Level 2: Classification details.")
+parser.add_argument("-lg", "--logfile", default="output/run_log.log",
+    help="Path to log file [DEFAULT: output\\run_log.log]")
 
 args = parser.parse_args()
 if args.verbose is None:
