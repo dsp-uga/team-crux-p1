@@ -1,6 +1,8 @@
 import pyspark
 import numpy as np
 
+import src.utilities.utils as util
+
 from .Classifier import Classifier
 import src.utilities.preprocess as preprocess
 
@@ -90,7 +92,18 @@ class NaiveBayesClassifier(Classifier):
         term_freqencies = words.map(_word_tuple_to_class_vec)
         term_freqencies = term_freqencies.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
 
-        # compute conditional probabilities P(word | class)
+
+        # calcualte number of words to be used in probabilty calculation
+        # TODO : check if this is nesasary. ( if order is preserved in the initial count it's not required )
+        total_words = np.zeros(len(_CLASSES.value))
+        for class_idx in np.arange(0, len(_CLASSES.value)):
+            class_label = _CLASS_INDICES.value[class_idx]
+            total_words_in_class = CLASS_WORD_COUNTS.value[class_label]
+            total_words[class_idx] = total_words_in_class
+
+        _TOTAL_WORDS = self.sc.broadcast(total_words )
+
+            # compute conditional probabilities P(word | class)
         def _term_freq_to_conditional_prob(x):
             """
             Takes a (word, class_count_vector) tuple and converts it to a (word, conditional_prob_vector) tuple
@@ -101,13 +114,7 @@ class NaiveBayesClassifier(Classifier):
             word, term_freq = x
             term_freq = term_freq + LAPLACE_ESTIMATOR  # solves zero-frequency problem
 
-            total_words = np.zeros(len(_CLASSES.value))
-            for class_idx in np.arange(0, len(_CLASSES.value)):
-                class_label = _CLASS_INDICES.value[class_idx]
-                total_words_in_class = CLASS_WORD_COUNTS.value[class_label]
-                total_words[class_idx] = total_words_in_class
-
-            total_words = total_words + LAPLACE_ESTIMATOR*VOCAB_SIZE.value  # correct for addition of laplace estimator
+            total_words = _TOTAL_WORDS.value + LAPLACE_ESTIMATOR*VOCAB_SIZE.value  # correct for addition of laplace estimator
 
             conditional_probability_vector = term_freq / total_words
             return (word, conditional_probability_vector)
