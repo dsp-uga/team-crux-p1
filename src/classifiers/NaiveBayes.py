@@ -96,7 +96,7 @@ class NaiveBayesClassifier(Classifier):
             return np.array_equal(np.repeat(arr[0], len(_CLASSES.value)), arr)
 
         # find words with equal frequency in all classes
-        # Note: this is a form of feature selection - we remove meaningless features
+        # Note: this is a form of feature selection - we remove meaningless features - LOOK AT WIKI for more info TODO: sections should be added
         useless_words  = term_freqencies.filter(lambda x: check_duplication(x[1])).map( lambda x:x[0])
         useless_words = self.sc.broadcast( useless_words.collect())
 
@@ -111,13 +111,14 @@ class NaiveBayesClassifier(Classifier):
         # CLASS_WORD_COUNTS maps class c to the total number of words in all docs of class c
         CLASS_WORD_COUNTS = self.sc.broadcast(dict(class_words.collect()))
 
-        # fix for issue #18
-        _TOTAL_WORDS = self.sc.broadcast(np.array([
-            CLASS_WORD_COUNTS.value ["CCAT"],
-            CLASS_WORD_COUNTS.value["ECAT"],
-            CLASS_WORD_COUNTS.value["GCAT"],
-            CLASS_WORD_COUNTS.value["MCAT"]
-        ]))
+
+        # create the list of words in each class frequency
+        total_words = np.zeros(len(_CLASSES.value))
+        for key in _CLASSES.value.keys():
+            total_words[_CLASSES.value[key]] = CLASS_WORD_COUNTS.value[key]
+
+        _TOTAL_WORDS = self.sc.broadcast( total_words )
+
 
         # compute conditional probabilities P(word | class)
         def _term_freq_to_conditional_prob(x):
