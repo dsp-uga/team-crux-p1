@@ -1,5 +1,6 @@
 import pyspark
 import numpy as np
+import csv
 
 import src.utilities.utils as util
 
@@ -8,12 +9,13 @@ import src.utilities.preprocess as preprocess
 
 
 class NaiveBayesClassifier(Classifier):
-    def __init__(self, spark_context, stopwords=[]):
+    def __init__(self, spark_context, stopwords=[],dump_word_in_class_Freq=None ):
         """
         This classifier using multinominal Naive Bayes to classify documents from the Reuters Corpus
         This classifier assumes that the program is running in an Apache Spark cluster
         :param spark_context: the Spark context object in which the RDD operations are being performed
         :param stopwords: file containing stopwords to be removed from the corpus
+        :param dump_word_in_class_Freq : an optional variable to set for the word in lcass frequency to be stored to 
         """
         Classifier.__init__(self)
         self.sc = spark_context
@@ -26,13 +28,17 @@ class NaiveBayesClassifier(Classifier):
             "GCAT": 2,
             "MCAT": 3
         })
+
+        # set the path for the file which will contain the dump of word for class frequency
+        self.dump_word_in_class_Freq = dump_word_in_class_Freq
+
         # mapping from numeric index back to class label
         self.CLASS_INDICES = self.sc.broadcast({v:k for k,v in self.CLASSES.value.items()})
 
         # read list of stopwords:
         self.SW = self.sc.broadcast(stopwords)
 
-    def train(self, data):
+    def train(self, data  ):
         """
         Trains the classifier using the specified set of labeled documents
         Builds a private function to classify a single document
@@ -94,6 +100,12 @@ class NaiveBayesClassifier(Classifier):
             :return: True if all the elements in the array are equal, False otherwise
             """
             return np.array_equal(np.repeat(arr[0], len(_CLASSES.value)), arr)
+
+
+        if( self.dump_word_in_class_Freq != None):
+            with open ( self.dump_word_in_class_Freq, "w" ) as word_output_file:
+                writer = csv.writer(word_output_file)
+                writer.writerows( term_freqencies.map( lambda  x : ( x[0], x[1][0],x[1][1],x[1][2],x[1][3] )).collect() )
 
         # find words with equal frequency in all classes
         # Note: this is a form of feature selection - we remove meaningless features - LOOK AT WIKI for more info TODO: sections should be added
