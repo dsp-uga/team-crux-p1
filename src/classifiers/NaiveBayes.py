@@ -65,11 +65,6 @@ class NaiveBayesClassifier(Classifier):
         vocab = words.map(lambda x: x[1]).distinct()
         VOCAB_SIZE = self.sc.broadcast(vocab.count())
 
-        # we can now count the number of words (non-unique) in each class
-        class_words = words.map(lambda x: (x[0], 1))  # (class, 1) tuples for each word in the corpus
-        class_words = class_words.reduceByKey(lambda a, b: a + b)
-        # CLASS_WORD_COUNTS maps class c to the total number of words in all docs of class c
-        CLASS_WORD_COUNTS = self.sc.broadcast(dict(class_words.collect()))
 
         # now we need to count up how many times each word appears in each class
         _CLASSES = self.CLASSES
@@ -92,6 +87,29 @@ class NaiveBayesClassifier(Classifier):
         term_freqencies = words.map(_word_tuple_to_class_vec)
         term_freqencies = term_freqencies.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
 
+        def check_duplication(inp):
+            """
+            check if cvalues in an array are equal
+            if [1,1,1,1] is entered, the function will return False.
+            :param inp: A NumPy Array
+            :return: true  if all the elements in the array are equal, false otherwise 
+            """
+            return np.array_equal(np.repeat(inp[0], len(_CLASSES.value)), inp)
+
+        # find words with equal frequency in all classes
+        useless_words  = term_freqencies.filter(lambda x: check_duplication(x[1])).map( lambda x:x[0])
+        useless_words = self.sc.broadcast( useless_words.collect() )
+
+        util.print_verbose("Found  %d words with similar counts " % len(useless_words.value), 1)
+
+        # remove words with equal freq in all classes
+        words = words.filter( lambda  x: not x[1] in useless_words.value)
+
+        # we can now count the number of words (non-unique) in each class
+        class_words = words.map(lambda x: (x[0], 1))  # (class, 1) tuples for each word in the corpus
+        class_words = class_words.reduceByKey(lambda a, b: a + b)
+        # CLASS_WORD_COUNTS maps class c to the total number of words in all docs of class c
+        CLASS_WORD_COUNTS = self.sc.broadcast(dict(class_words.collect()))
 
         # calcualte number of words to be used in probabilty calculation
         # TODO : check if this is nesasary. ( if order is preserved in the initial count it's not required )
