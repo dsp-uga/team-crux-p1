@@ -1,6 +1,8 @@
 import pyspark
 import numpy as np
 
+import src.utilities.utils as util
+
 from .Classifier import Classifier
 import src.utilities.preprocess as preprocess
 
@@ -63,11 +65,6 @@ class NaiveBayesClassifier(Classifier):
         vocab = words.map(lambda x: x[1]).distinct()
         VOCAB_SIZE = self.sc.broadcast(vocab.count())
 
-        # we can now count the number of words (non-unique) in each class
-        class_words = words.map(lambda x: (x[0], 1))  # (class, 1) tuples for each word in the corpus
-        class_words = class_words.reduceByKey(lambda a, b: a + b)
-        # CLASS_WORD_COUNTS maps class c to the total number of words in all docs of class c
-        CLASS_WORD_COUNTS = self.sc.broadcast(dict(class_words.collect()))
 
         # now we need to count up how many times each word appears in each class
         _CLASSES = self.CLASSES
@@ -90,7 +87,40 @@ class NaiveBayesClassifier(Classifier):
         term_freqencies = words.map(_word_tuple_to_class_vec)
         term_freqencies = term_freqencies.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
 
-        # compute conditional probabilities P(word | class)
+        def check_duplication(inp):
+            """
+            check if cvalues in an array are equal
+            if [1,1,1,1] is entered, the function will return False.
+            :param inp: A NumPy Array
+            :return: true  if all the elements in the array are equal, false otherwise 
+            """
+            return np.array_equal(np.repeat(inp[0], len(_CLASSES.value)), inp)
+
+        # find words with equal frequency in all classes
+        useless_words  = term_freqencies.filter(lambda x: check_duplication(x[1])).map( lambda x:x[0])
+        useless_words = self.sc.broadcast( useless_words.collect() )
+
+        util.print_verbose("Found  %d words with similar counts " % len(useless_words.value), 1)
+
+        # remove words with equal freq in all classes
+        words = words.filter( lambda  x: not x[1] in useless_words.value)
+
+        # we can now count the number of words (non-unique) in each class
+        class_words = words.map(lambda x: (x[0], 1))  # (class, 1) tuples for each word in the corpus
+        class_words = class_words.reduceByKey(lambda a, b: a + b)
+        # CLASS_WORD_COUNTS maps class c to the total number of words in all docs of class c
+        CLASS_WORD_COUNTS = self.sc.broadcast(dict(class_words.collect()))
+
+
+        # calcualte number of words to be used in probabilty calculation
+        total_words = np.zeros(len(_CLASSES.value))
+        for key in _CLASSES.value.keys():
+            total_words[_CLASSES.value[key]] = CLASS_WORD_COUNTS.value[key]
+
+        _TOTAL_WORDS = self.sc.broadcast( total_words )
+
+
+            # compute conditional probabilities P(word | class)
         def _term_freq_to_conditional_prob(x):
             """
             Takes a (word, class_count_vector) tuple and converts it to a (word, conditional_prob_vector) tuple
@@ -101,13 +131,7 @@ class NaiveBayesClassifier(Classifier):
             word, term_freq = x
             term_freq = term_freq + LAPLACE_ESTIMATOR  # solves zero-frequency problem
 
-            total_words = np.zeros(len(_CLASSES.value))
-            for class_idx in np.arange(0, len(_CLASSES.value)):
-                class_label = _CLASS_INDICES.value[class_idx]
-                total_words_in_class = CLASS_WORD_COUNTS.value[class_label]
-                total_words[class_idx] = total_words_in_class
-
-            total_words = total_words + LAPLACE_ESTIMATOR*VOCAB_SIZE.value  # correct for addition of laplace estimator
+            total_words = _TOTAL_WORDS.value + LAPLACE_ESTIMATOR*VOCAB_SIZE.value  # correct for addition of laplace estimator
 
             conditional_probability_vector = term_freq / total_words
             return (word, conditional_probability_vector)
