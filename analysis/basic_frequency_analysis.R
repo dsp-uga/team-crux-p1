@@ -37,12 +37,17 @@ theMat.t <- t( theMat )
 sds<- colSds(theMat.t )  
 avgs <- colMeans(theMat.t  )
 sums <- colSums( theMat.t )
-mins <- 
+mins <- colMins( theMat.t )
+vars <- colVars( theMat.t)
+maxs <- colMaxs(theMat.t)
 
 # save calculated values back to dataframe 
 word.class.df$sds  <-  sds  
 word.class.df$sums <- sums
 word.class.df$avgs <- avgs
+word.class.df$mins <- mins
+word.class.df$maxes <- maxs
+word.class.df$vars <- vars
 
 # now check how the sd looks like
 hist ( sds, n =10 )
@@ -66,4 +71,4 @@ plot ( word.class.df$sds ~ word.class.df$sums )
 # plot fields against each other
 plot(  word.class.df[ c( "MCAT", "CCAT", "GCAT", "ECAT" , "sds" , "sums", "avgs" ) ]  )
 
-
+write.csv( word.class.df , "words.csv" )
