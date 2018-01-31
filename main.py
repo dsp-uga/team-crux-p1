@@ -57,6 +57,10 @@ parser.add_argument("-v", "--verbose", action="count",
 parser.add_argument("-lg", "--logfile", default="output/run_log.log",
     help="Path to log file [DEFAULT: output\\run_log.log]")
 
+parser.add_argument("-df", "--dumpfile", default=None,
+    help="Path to dump the word in class frequency as a CSV file [DEFAULT: None ]")
+
+
 args = parser.parse_args()
 if args.verbose is None:
     args.verbose = 0
@@ -77,7 +81,7 @@ sc = SparkContext.getOrCreate()
 
 stopwords = list(preprocess.load_stopwords(args.stopwords))
 if args.classifier == "naivebayes":
-    classifier = NaiveBayesClassifier(sc, stopwords=stopwords)
+    classifier = NaiveBayesClassifier(sc, stopwords=stopwords,dump_word_in_class_Freq=args.dumpfile)
 elif args.classifier == "majority":
     classifier = MajorityClassifier()
 else:
