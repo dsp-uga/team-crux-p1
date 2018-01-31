@@ -47,6 +47,7 @@ class NaiveBayesClassifier(Classifier):
         :return: None
         """
         assert(isinstance(data, pyspark.RDD))
+        _TOTAL_DOCS = data.count()
         TOTAL_DOCS = self.sc.broadcast(data.count())
         # get the number of documents per class
         class_unit_counts = data.map(lambda x: (x[1], 1))  # (class_label, 1) tuples
@@ -90,7 +91,25 @@ class NaiveBayesClassifier(Classifier):
             return (word, class_vector)
 
         term_freqencies = words.map(_word_tuple_to_class_vec)
-        term_freqencies = term_freqencies.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
+
+        def _tf_icf(x):
+            """
+            Takes a (word, class_vector) tuple and calculates tf/icf scores of the word for each class
+            tf = log(1 + f(i,j)), where f(i,j) is number of occurances of word i in class j
+            icf = log((1 + N)/(1 + n(j))), where N is number of documents in corpus, n(j) = number of times term j occured in corpus
+            tficf score = tf * icf 
+            """
+            term = x[0]
+            frequencies = x[1] + 1
+            tf = np.log(frequencies)
+            nj = np.sum(frequencies)  # number of documents in which the word appears
+            icf = np.log((1 + _TOTAL_DOCS) / (1 + nj))
+            tficf = tf * icf
+            return (term, tficf)
+
+        tficf_scores = term_freqencies.map(_tf_icf)
+
+        tficf_scores = tficf_scores.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
 
         def check_duplication(arr):
             """
@@ -99,7 +118,8 @@ class NaiveBayesClassifier(Classifier):
             :param arr: A NumPy Array
             :return: True if all the elements in the array are equal, False otherwise
             """
-            return np.array_equal(np.repeat(arr[0], len(_CLASSES.value)), arr)
+
+            return np.std(arr  ) >= 1.8  or np.sum(arr) <4         # return np.array_equal(np.repeat(arr[0], len(_CLASSES.value)), arr)
 
 
         if( self.dump_word_in_class_Freq != None):
@@ -109,27 +129,27 @@ class NaiveBayesClassifier(Classifier):
 
         # find words with equal frequency in all classes
         # Note: this is a form of feature selection - we remove meaningless features - LOOK AT WIKI for more info TODO: sections should be added
-        useless_words  = term_freqencies.filter(lambda x: check_duplication(x[1])).map( lambda x:x[0])
-        useless_words = self.sc.broadcast( useless_words.collect())
 
-        util.print_verbose("Found %d words with similar counts " % len(useless_words.value), 1)
 
-        # remove words with equal freq in all classes
-        words = words.filter( lambda  x: not x[1] in useless_words.value)
-
-        # we can now count the number of words (non-unique) in each class
-        class_words = words.map(lambda x: (x[0], 1))  # (class, 1) tuples for each word in the corpus
-        class_words = class_words.reduceByKey(lambda a, b: a + b)
-        # CLASS_WORD_COUNTS maps class c to the total number of words in all docs of class c
-        CLASS_WORD_COUNTS = self.sc.broadcast(dict(class_words.collect()))
-
+        ## TODO : do the filtering
+        
+        tficf_scores = tficf_scores.filter( lambda  x :check_duplication(x[1]) )
 
         # create the list of words in each class frequency
-        total_words = np.zeros(len(_CLASSES.value))
-        for key in _CLASSES.value.keys():
-            total_words[_CLASSES.value[key]] = CLASS_WORD_COUNTS.value[key]
+        _TOTAL_WORDS = term_freqencies.map( lambda x:x[1] ).reduce( lambda a,b: a+b)
 
-        _TOTAL_WORDS = self.sc.broadcast( total_words )
+        _TOTAL_WORDS = self.sc.broadcast(_TOTAL_WORDS)
+
+
+        #
+        # useless_words = self.sc.textFile( "analysis/words.csv" ).map( lambda  x: x.split(","))
+        #
+        # useless_words = useless_words.filter ( lambda  x : float(x[6])<=0.5).map( lambda  x:x[1])
+        #
+        # # useless_words  = term_freqencies.filter(lambda x: check_duplication(x[1])).map( lambda x:x[0])
+        # useless_words = self.sc.broadcast( useless_words.collect())
+
+        # util.print_verbose("Found %d words with similar counts " % len(useless_words.value), 1)
 
 
         # compute conditional probabilities P(word | class)
@@ -142,13 +162,13 @@ class NaiveBayesClassifier(Classifier):
             LAPLACE_ESTIMATOR = 1
             word, term_freq = x
             term_freq = term_freq + LAPLACE_ESTIMATOR  # solves zero-frequency problem
-
+            
             total_words = _TOTAL_WORDS.value + LAPLACE_ESTIMATOR*VOCAB_SIZE.value  # correct for addition of laplace estimator
 
             conditional_probability_vector = term_freq / total_words
             return (word, conditional_probability_vector)
 
-        conditional_term_probabilities = term_freqencies.map(_term_freq_to_conditional_prob)
+        conditional_term_probabilities = tficf_scores.map(_term_freq_to_conditional_prob)
         CONDITIONAL_TERM_PROBABILITY = self.sc.broadcast(dict(conditional_term_probabilities.collect()))
 
         # finally, we can build the classification function:
