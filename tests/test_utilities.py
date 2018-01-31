@@ -31,7 +31,58 @@ class TestPreprocess(unittest.TestCase):
         preprocess.remove_html_character_references(word)
         self.assertEqual(word, "Investment&quot;")
 
-    # TODO: tests for the other preprocessing functions
+    def test_strip_punctuation(self):
+        # test that the function performs as expected
+        self.assertEqual(preprocess.strip_punctuation("'snow"), "snow")
+        self.assertEqual(preprocess.strip_punctuation("snow."), "snow")
+        self.assertEqual(preprocess.strip_punctuation("snow!"), "snow")
+        self.assertEqual(preprocess.strip_punctuation("?snow?"), "snow")
+        self.assertEqual(preprocess.strip_punctuation("snow\""), "snow")
+        self.assertEqual(preprocess.strip_punctuation("sn!ow"), "snow")
+
+        # test that the function has no side effects
+        word = "Investment."
+        preprocess.remove_html_character_references(word)
+        self.assertEqual(word, "Investment.")
+
+    def test_tokenize(self):
+        # test that the function performs as expected
+        line = "the quick   brown   \t  fox  jumps \r\n over the lazy \n dog"
+        tokens = preprocess.tokenize(line)
+
+        self.assertTrue("the" in tokens)
+        self.assertTrue("quick" in tokens)
+        self.assertTrue("brown" in tokens)
+        self.assertTrue("fox" in tokens)
+        self.assertTrue("jumps" in tokens)
+        self.assertTrue("over" in tokens)
+        self.assertTrue("the" in tokens)
+        self.assertTrue("lazy" in tokens)
+        self.assertTrue("dog" in tokens)
+
+    def test_split_by_comma(self):
+        line = "the,quick,brown,fox,jumps,over,the,lazy,dog"
+        tokens = preprocess.split_by_comma(line)
+
+        self.assertTrue("the" in tokens)
+        self.assertTrue("quick" in tokens)
+        self.assertTrue("brown" in tokens)
+        self.assertTrue("fox" in tokens)
+        self.assertTrue("jumps" in tokens)
+        self.assertTrue("over" in tokens)
+        self.assertTrue("the" in tokens)
+        self.assertTrue("lazy" in tokens)
+        self.assertTrue("dog" in tokens)
+
+    def test_remove_irrelevant_labels(self):
+        labels = ["GCAT", "CCAT", "ECAT", "MCAT", "E12", "E54" "G154", "M13", "GWEA"]
+        filtered = preprocess.remove_irrelevant_labels(labels)
+
+        self.assertEqual(len(filtered), 4)
+        self.assertTrue("GCAT" in filtered)
+        self.assertTrue("CCAT" in filtered)
+        self.assertTrue("ECAT" in filtered)
+        self.assertTrue("MCAT" in filtered)
 
 
 class TestUtils(unittest.TestCase):
@@ -39,7 +90,6 @@ class TestUtils(unittest.TestCase):
         # for some reason, running spark code within a unittest throws a bunch of ResourceWarnings
         # check out this issue: https://github.com/requests/requests/issues/3912
         warnings.filterwarnings(action="ignore", category=ResourceWarning)
-        pass
 
     def test_custom_zip(self):
         # for this test, we don't want to run on an actual cluster.  A local master is sufficient
