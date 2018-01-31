@@ -7,7 +7,7 @@ import string
 import re
 
 
-def load_stopwords(path="stopwords/generic.txt"):
+def load_stopwords(path="stopwords/all.txt"):
     """
     Create a list of stopwords from the target text file
     Stopwords will be stripped of whitespace and converted to lowercase
@@ -18,7 +18,7 @@ def load_stopwords(path="stopwords/generic.txt"):
     with open(path, "r") as file:
         stopwords = list(file)
 
-    return map(lambda word: word.strip().lower(), stopwords)
+    return map(lambda word: strip_punctuation(word.strip().lower()), stopwords)
 
 
 def remove_html_character_references(word):
