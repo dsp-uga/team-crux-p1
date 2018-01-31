@@ -2,14 +2,12 @@ import pyspark
 import numpy as np
 import csv
 
-import src.utilities.utils as util
-
 from .Classifier import Classifier
 import src.utilities.preprocess as preprocess
 
 
 class NaiveBayesClassifier(Classifier):
-    def __init__(self, spark_context, stopwords=[],dump_word_in_class_Freq=None ):
+    def __init__(self, spark_context, stopwords=[], dump_word_in_class_Freq=None ):
         """
         This classifier using multinominal Naive Bayes to classify documents from the Reuters Corpus
         This classifier assumes that the program is running in an Apache Spark cluster
@@ -95,8 +93,10 @@ class NaiveBayesClassifier(Classifier):
         def _tf_icf(x):
             """
             Takes a (word, class_vector) tuple and calculates tf/icf scores of the word for each class
-            tf = log(1 + f(i,j)), where f(i,j) is number of occurances of word i in class j
-            icf = log((1 + N)/(1 + n(j))), where N is number of documents in corpus, n(j) = number of times term j occured in corpus
+            tf = log(1 + f(i,j)), where f(i,j) is number of occurrences of word i in class j
+            icf = log((1 + N)/(1 + n(j))),
+            where N is number of documents in corpus, n(j) = number of times term j occurred in corpus
+
             tficf score = tf * icf 
             """
             term = x[0]
@@ -111,46 +111,31 @@ class NaiveBayesClassifier(Classifier):
 
         tficf_scores = tficf_scores.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
 
-        def check_duplication(arr):
-            """
-            Checks if all values in a vector are equal
-            E.g. if [1,1,1,1] is given, the function will return True
-            :param arr: A NumPy Array
-            :return: True if all the elements in the array are equal, False otherwise
-            """
-
-            return np.std(arr  ) >= 1.8  or np.sum(arr) <4         # return np.array_equal(np.repeat(arr[0], len(_CLASSES.value)), arr)
-
-
+        # TODO: we probably shouldn't keep this around forever.  Not a feature that end-users need
         if( self.dump_word_in_class_Freq != None):
             with open ( self.dump_word_in_class_Freq, "w" ) as word_output_file:
                 writer = csv.writer(word_output_file)
                 writer.writerows( term_freqencies.map( lambda  x : ( x[0], x[1][0],x[1][1],x[1][2],x[1][3] )).collect() )
 
+        def filter_by_std_deviation(arr):
+            """
+            Checks that the standard deviation of elements in an array is above a certain threshold
+
+            :param arr: A NumPy Array
+            :return: True if the standard deviation is above 1.8 or if one of the elements is zero, False otherwise
+            """
+            THRESHOLD = 1.8  # magic number chosen by running some statistical procedures against a large dataset
+            return np.std(arr) >= THRESHOLD or np.sum(arr) < 4
+
         # find words with equal frequency in all classes
-        # Note: this is a form of feature selection - we remove meaningless features - LOOK AT WIKI for more info TODO: sections should be added
+        # Note: this is a form of feature selection - we remove meaningless features - See project wiki for more info
+        # TODO: sections should be added to wiki
+        tficf_scores = tficf_scores.filter(lambda x: filter_by_std_deviation(x[1]))
 
-
-        ## TODO : do the filtering
-        
-        tficf_scores = tficf_scores.filter( lambda  x :check_duplication(x[1]) )
-
-        # create the list of words in each class frequency
-        _TOTAL_WORDS = term_freqencies.map( lambda x:x[1] ).reduce( lambda a,b: a+b)
+        # count all words
+        _TOTAL_WORDS = term_freqencies.map(lambda x: x[1]).reduce(lambda a, b: a+b)
 
         _TOTAL_WORDS = self.sc.broadcast(_TOTAL_WORDS)
-
-
-        #
-        # useless_words = self.sc.textFile( "analysis/words.csv" ).map( lambda  x: x.split(","))
-        #
-        # useless_words = useless_words.filter ( lambda  x : float(x[6])<=0.5).map( lambda  x:x[1])
-        #
-        # # useless_words  = term_freqencies.filter(lambda x: check_duplication(x[1])).map( lambda x:x[0])
-        # useless_words = self.sc.broadcast( useless_words.collect())
-
-        # util.print_verbose("Found %d words with similar counts " % len(useless_words.value), 1)
-
 
         # compute conditional probabilities P(word | class)
         def _term_freq_to_conditional_prob(x):
