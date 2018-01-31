@@ -127,8 +127,7 @@ if args.evaluate:
                                          threshold=2, log_level=args.verbose )
     )
 
-    utils.print_verbose("Accuracy on test set: %s" % accuracy,
-                    threshold=1, log_level=args.verbose)
+    utils.print_verbose("Accuracy on test set: %s" % accuracy, threshold=0, log_level=args.verbose)
 
 outfile = "labels.txt"
 outpath = os.path.join(args.output, outfile)
