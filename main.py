@@ -8,6 +8,7 @@ import argparse
 import os.path
 import logging
 
+from src.classifiers.EnhancedNaiveBayes import EnhancedNaiveBayesClassifier
 from src.classifiers.NaiveBayes import NaiveBayesClassifier
 from src.classifiers.Majority import MajorityClassifier
 import src.utilities.utils as utils
@@ -48,8 +49,8 @@ parser.add_argument("-s", "--stopwords", default="stopwords/all.txt",
 parser.add_argument("-o", "--output", default="output",
     help="Path to the output directory where output file will be written. [DEFAULT: \"output/\"]")
 
-parser.add_argument("-c", "--classifier", default="naivebayes", choices=["naivebayes", "majority"],
-    help="What type of classifier to train [DEFAULT: naivebayes]")
+parser.add_argument("-c", "--classifier", default="enb", choices=["enb", "nb", "majority"],
+    help="What type of classifier to train [DEFAULT: enb]")
 
 parser.add_argument("-v", "--verbose", action="count",
     help="Set verbosity level.  Level 0: no command-line output.  Level 1: status messages.  Level 2: Classification details.")
@@ -80,13 +81,15 @@ if args.verbose is None:
 sc = SparkContext.getOrCreate()
 
 stopwords = list(preprocess.load_stopwords(args.stopwords))
-if args.classifier == "naivebayes":
-    classifier = NaiveBayesClassifier(sc, stopwords=stopwords,dump_word_in_class_Freq=args.dumpfile)
+if args.classifier == "enb":
+    classifier = EnhancedNaiveBayesClassifier(sc, stopwords=stopwords, dump_word_in_class_Freq=args.dumpfile)
+elif args.classifier == "nb":
+    classifier = NaiveBayesClassifier(sc, stopwords=stopwords)
 elif args.classifier == "majority":
     classifier = MajorityClassifier()
 else:
     # use default classifier
-    classifier = NaiveBayesClassifier(sc, stopwords=stopwords)
+    classifier = EnhancedNaiveBayesClassifier(sc, stopwords=stopwords, dump_word_in_class_Freq=args.dumpfile)
 
 # get the training set together:
 training_docs = sc.textFile(args.dataset)  # rdd where each entry is the contents of a document

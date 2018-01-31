@@ -104,9 +104,10 @@ Options:
     this directory.
     [DEFAULT: "output/"]
                         
-* ```-c, --classifier {enaivebayes, naivebayes, majority}```
-    What type of classifier to train.  ```enaivebayes``` = Enhanced naive bayes.
-    [DEFAULT: "enaivebayes"]
+* ```-c, --classifier {enb, nb, majority}```
+    What type of classifier to train. 
+     ```enb``` = Enhanced naive bayes.  ```nb``` = basic Naive Bayes.
+    [DEFAULT: "enb"]
     
                         
 * ```-v, --verbose```         
