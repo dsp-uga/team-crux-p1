@@ -32,7 +32,12 @@ TODO: example of how to run one of the scripts
 
 ## Running the tests
 
-TODO: Fill this section if we add unit tests
+This project uses Python's built-in unittest module for running tests.
+Tests are located in the `.tests` package and currently cover the reusable functons in the src.utilities module.
+
+Run tests by running the following (with your conda env activated) in the project directory:
+```python -m unittest discover```
+
 
 ## Deployment
 

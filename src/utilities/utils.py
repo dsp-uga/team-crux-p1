@@ -5,6 +5,7 @@ This module contains miscellaneous utility functions
 import os
 import logging
 
+
 def custom_zip(rdd1, rdd2):
     """
     Custom zipping function for RDDs
