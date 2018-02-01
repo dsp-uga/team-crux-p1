@@ -3,6 +3,7 @@ import numpy as np
 import csv
 from .Classifier import Classifier
 import src.utilities.preprocess as preprocess
+from nltk.stem import WordNetLemmatizer
 
 
 class EnhancedNaiveBayesClassifier(Classifier):
@@ -37,8 +38,10 @@ class EnhancedNaiveBayesClassifier(Classifier):
         # mapping from numeric index back to class label
         self.CLASS_INDICES = self.sc.broadcast({v: k for k, v in self.CLASSES.value.items()})
 
-        # read list of stopwords:
+        # list of stopwords:
         self.SW = self.sc.broadcast(stopwords)
+
+        self.lemmatizer = WordNetLemmatizer()
 
     def train(self, data):
         """
@@ -61,12 +64,14 @@ class EnhancedNaiveBayesClassifier(Classifier):
 
         # tokenize and preprocess documents:
         _SW = self.SW
+        _lemmatizer = self.lemmatizer
         processed = data.map(lambda tuple: (tuple[1], tuple[0]))  # temporarily swap to (class, document_contents)
         words = processed.flatMapValues(preprocess.tokenize)  # (class, word) pairs
         words = words.mapValues(preprocess.remove_html_character_references)
         words = words.mapValues(preprocess.strip_punctuation)
         words = words.mapValues(lambda x: x.lower())
-        words = words.filter(lambda x: len(x[1]) > 0)  # make sure
+        words = words.mapValues(lambda x: _lemmatizer.lemmatize(x))  # lemmatization from NLTK
+        words = words.filter(lambda x: len(x[1]) > 0)  # make sure we don't include empty string
         words = words.filter(lambda x: x[1] not in _SW.value)  # remove stopwords from corpus
         words.cache()
 
