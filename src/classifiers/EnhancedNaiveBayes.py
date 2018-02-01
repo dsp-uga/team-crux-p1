@@ -62,7 +62,7 @@ class EnhancedNaiveBayesClassifier(Classifier):
         # tokenize and preprocess documents:
         _SW = self.SW
         processed = data.map(lambda tuple: (tuple[1], tuple[0]))  # temporarily swap to (class, document_contents)
-        words = processed.flatMapValues(preprocess.tokenize)  # (class, word) pairs
+        words = processed.flatMapValues(preprocess.tokenize_with_bigrams)  # (class, ngram) pairs
         words = words.mapValues(preprocess.remove_html_character_references)
         words = words.mapValues(preprocess.strip_punctuation)
         words = words.mapValues(lambda x: x.lower())
@@ -180,7 +180,7 @@ class EnhancedNaiveBayesClassifier(Classifier):
             posterior += np.log(marginals)
 
             # for each word, add log of word probability
-            tokens = preprocess.tokenize(document)
+            tokens = preprocess.tokenize_with_bigrams(document)
             for token in tokens:
                 word = preprocess.remove_html_character_references(token)
                 word = preprocess.strip_punctuation(word).lower()

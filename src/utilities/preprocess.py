@@ -5,6 +5,7 @@ Contains functions which are helpful for preprocessing text
 
 import string
 import re
+import nltk
 
 
 def load_stopwords(path="stopwords/all.txt"):
@@ -61,6 +62,33 @@ def tokenize(line):
     :return: an array of tokens contained in the line of text
     """
     return line.split()
+
+
+def generate_bigrams(words):
+    """
+    Generates bigrams (groups of two consecutive words) from the given array of ordered words
+    Each bigram will be delimited by a single space
+    :param words: ordered array of words
+    :return: bigrams from the given set of words
+    """
+    bigrams = []
+    for idx in range(1, len(words)):
+        word = words[idx]
+        predecessor = words[idx-1]
+        bigrams.append("%s %s" % (word, predecessor))
+    return bigrams
+
+
+def tokenize_with_bigrams(line):
+    """
+    Splits the given line into whitespace-delimited tokens and bigrams
+    :param line: the line of text to proecess
+    :return: an array containing tokens (unigrams) and bigrams from the line of text
+    """
+    tokens = tokenize(line)
+    bigrams = generate_bigrams(tokens)
+    tokens.extend(bigrams)
+    return tokens
 
 
 def split_by_comma(line):

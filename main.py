@@ -3,7 +3,7 @@ Driver for text classification program.
 Reads command line arguments, classifies some documents, then (optionally) writes out the result
 """
 
-from pyspark import SparkContext
+from pyspark import SparkContext, SparkConf
 import argparse
 import os.path
 import logging
@@ -78,7 +78,10 @@ args = parser.parse_args()
 if args.verbose is None:
     args.verbose = 0
 
-sc = SparkContext.getOrCreate()
+conf = SparkConf().setAppName("team-crux-p1").setMaster("local[6]") \
+        .set('spark.driver.memory', '12g')
+sc = SparkContext(conf=conf)
+# sc = SparkContext.getOrCreate()
 
 stopwords = list(preprocess.load_stopwords(args.stopwords))
 if args.classifier == "enb":
