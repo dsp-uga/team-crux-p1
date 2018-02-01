@@ -119,7 +119,7 @@ class EnhancedNaiveBayesClassifier(Classifier):
         if (self.dump_word_in_class_Freq != None):
             with open(self.dump_word_in_class_Freq, "w") as word_output_file:
                 writer = csv.writer(word_output_file)
-                writer.writerows(term_freqencies.map(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3])).collect())
+                writer.writerows(tficf_scores.map(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3])).collect())
 
         def filter_by_std_deviation(arr):
             """
@@ -128,8 +128,8 @@ class EnhancedNaiveBayesClassifier(Classifier):
             :param arr: A NumPy Array
             :return: True if the standard deviation is above 1.8 or if one of the elements is zero, False otherwise
             """
-            THRESHOLD = 1.8  # magic number chosen by running some statistical procedures against a large dataset
-            return np.std(arr) >= THRESHOLD or np.sum(arr) < 4
+            THRESHOLD = 0  # magic number chosen by running some statistical procedures against a large dataset
+            return np.std(arr) !=  THRESHOLD #or np.sum(arr) < 4
 
         # find words with equal frequency in all classes
         # Note: this is a form of feature selection - we remove meaningless features - See project wiki for more info
