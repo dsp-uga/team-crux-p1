@@ -105,9 +105,9 @@ Options:
     this directory.
     [DEFAULT: "output/"]
                         
-* ```-c, --classifier {enb, nb, majority}```
+* ```-c, --classifier {enb, nb, majority,css}```
     What type of classifier to train. 
-     ```enb``` = Enhanced naive bayes.  ```nb``` = basic Naive Bayes.
+     ```enb``` = Enhanced naive bayes.  ```nb``` = basic Naive Bayes. ```css``` = cosine similarity.
     [DEFAULT: "enb"]    
                         
 * ```-v, --verbose```         
@@ -178,4 +178,5 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE) f
  provided the very small data set included in this repository
 * A. Balucha for his [repository of stopwords](https://code.google.com/archive/p/stop-words/)
 * [Chris Barrick](https://github.com/cbarrick) for providing the setup.py and submit.sh scrips
+* Other resources used have been cited in their corresponding wiki page. 
 
