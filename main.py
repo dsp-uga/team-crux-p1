@@ -55,5 +55,3 @@ if args.verbose is None:
     args.verbose = 0
 
 src.__main__.main(args)
-
-        .set("spark.driver.maxResultSize", "0")
