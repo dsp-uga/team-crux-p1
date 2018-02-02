@@ -40,7 +40,7 @@ parser.add_argument("-s", "--stopwords", default="stopwords/all.txt",
 parser.add_argument("-o", "--output", default="output",
     help="Path to the output directory where output file will be written. [DEFAULT: \"output/\"]")
 
-parser.add_argument("-c", "--classifier", default="enb", choices=["enb", "nb", "majority"],
+parser.add_argument("-c", "--classifier", default="enb", choices=["enb", "nb", "majority", "css"],
     help="What type of classifier to train [DEFAULT: enb]")
 
 parser.add_argument("-v", "--verbose", action="count",
