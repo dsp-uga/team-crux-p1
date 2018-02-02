@@ -93,33 +93,8 @@ class CosineSimilarityClassifier(Classifier):
             return (word, class_vector)
 
         term_freqencies = words.map(_word_tuple_to_class_vec)
+        term_freqencies = term_freqencies.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
 
-        def _tf_icf(x):
-            """
-            Takes a (word, class_vector) tuple and calculates tf/icf scores of the word for each class
-            tf = log(1 + f(i,j)), where f(i,j) is number of occurrences of word i in class j
-            icf = log((1 + N)/(1 + n(j))),
-            where N is number of documents in corpus, n(j) = number of times term j occurred in corpus
-
-            tficf score = tf * icf
-            """
-            term = x[0]
-            frequencies = x[1] + 1
-            tf = np.log(frequencies)
-            nj = np.sum(frequencies)  # number of documents in which the word appears
-            icf = np.log((1 + _TOTAL_DOCS) / (1 + nj))
-            tficf = tf * icf
-            return (term, tficf)
-
-        tficf_scores = term_freqencies.map(_tf_icf)
-
-        tficf_scores = tficf_scores.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
-
-        # TODO: we probably shouldn't keep this around forever.  Not a feature that end-users need
-        if (self.dump_word_in_class_Freq != None):
-            with open(self.dump_word_in_class_Freq, "w") as word_output_file:
-                writer = csv.writer(word_output_file)
-                writer.writerows(tficf_scores.map(lambda x: (x[0], x[1][0], x[1][1], x[1][2], x[1][3])).collect())
 
         def filter_by_std_deviation(arr):
             """
@@ -129,16 +104,14 @@ class CosineSimilarityClassifier(Classifier):
             :return: True if the standard deviation is above 1.8 or if one of the elements is zero, False otherwise
             """
             THRESHOLD = 0  # magic number chosen by running some statistical procedures against a large dataset
-            return np.std(arr) !=  THRESHOLD #or np.sum(arr) < 4
+            return np.std(arr) >  THRESHOLD #or np.sum(arr) < 4
 
         # find words with equal frequency in all classes
         # Note: this is a form of feature selection - we remove meaningless features - See project wiki for more info
         # TODO: sections should be added to wiki
-        tficf_scores = tficf_scores.filter(lambda x: filter_by_std_deviation(x[1]))
+        term_freqencies = term_freqencies.filter(lambda x: filter_by_std_deviation(x[1]))
 
         # count all words
-        _TOTAL_WORDS = term_freqencies.map(lambda x: x[1]).reduce(lambda a, b: a + b)
-
         power_two = term_freqencies.map(  lambda  x: x[1]*x[1]).reduce( lambda a,b : a+b)
         power_two = np.sqrt( power_two )
         power_two = self.sc.broadcast( power_two )
@@ -155,8 +128,6 @@ class CosineSimilarityClassifier(Classifier):
             :param document: the document to classify
             :return: the label of the predicted class
             """
-
-
 
             # for each word, add log of word probability (and make them unique)
             tokens =   preprocess.tokenize(document)
