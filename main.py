@@ -78,9 +78,8 @@ args = parser.parse_args()
 if args.verbose is None:
     args.verbose = 0
 
-conf = SparkConf().setAppName("team-crux-p1").setMaster("local[6]") \
-        .set('spark.driver.memory', '12g') \
-        .set("spark.driver.maxResultSize", "1g")
+conf = SparkConf().setAppName("team-crux-p1").setMaster("local") \
+        .set("spark.driver.maxResultSize", "0")
 sc = SparkContext(conf=conf)
 # sc = SparkContext.getOrCreate()
 
