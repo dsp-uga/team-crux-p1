@@ -11,6 +11,7 @@ import logging
 from src.classifiers.EnhancedNaiveBayes import EnhancedNaiveBayesClassifier
 from src.classifiers.NaiveBayes import NaiveBayesClassifier
 from src.classifiers.Majority import MajorityClassifier
+from src.classifiers.CosineSimilarity import  CosineSimilarityClassifier
 import src.utilities.utils as utils
 import src.utilities.preprocess as preprocess
 
@@ -49,7 +50,7 @@ parser.add_argument("-s", "--stopwords", default="stopwords/all.txt",
 parser.add_argument("-o", "--output", default="output",
     help="Path to the output directory where output file will be written. [DEFAULT: \"output/\"]")
 
-parser.add_argument("-c", "--classifier", default="enb", choices=["enb", "nb", "majority"],
+parser.add_argument("-c", "--classifier", default="enb", choices=["enb", "nb", "majority", "css"],
     help="What type of classifier to train [DEFAULT: enb]")
 
 parser.add_argument("-v", "--verbose", action="count",
@@ -87,6 +88,8 @@ elif args.classifier == "nb":
     classifier = NaiveBayesClassifier(sc, stopwords=stopwords)
 elif args.classifier == "majority":
     classifier = MajorityClassifier()
+elif args.classifier == "css":
+    classifier = CosineSimilarityClassifier(sc, stopwords=stopwords)
 else:
     # use default classifier
     classifier = EnhancedNaiveBayesClassifier(sc, stopwords=stopwords, dump_word_in_class_Freq=args.dumpfile)
