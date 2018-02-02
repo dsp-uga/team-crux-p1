@@ -8,6 +8,7 @@ import os.path
 from src.classifiers.EnhancedNaiveBayes import EnhancedNaiveBayesClassifier
 from src.classifiers.NaiveBayes import NaiveBayesClassifier
 from src.classifiers.Majority import MajorityClassifier
+from src.classifiers.CosineSimilarity import CosineSimilarityClassifier
 import src.utilities.utils as utils
 import src.utilities.preprocess as preprocess
 
@@ -32,6 +33,8 @@ def main(args):
         classifier = NaiveBayesClassifier(sc, stopwords=stopwords)
     elif args.classifier == "majority":
         classifier = MajorityClassifier()
+    elif args.classifier =="css":
+        classifier = CosineSimilarityClassifier( sc, stopwords=stopwords )
     else:
         # use default classifier
         classifier = EnhancedNaiveBayesClassifier(sc, stopwords=stopwords, dump_word_in_class_Freq=args.dumpfile)
