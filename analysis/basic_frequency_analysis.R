@@ -9,10 +9,10 @@ rm( list = ls() )
 
 
 ## set working directory - just to make sure
-setwd( "/home/omido/Courses/8360/team-crux-p1/analysis/")
+setwd( "/home/omido/Courses/8360/team-crux-p1/output/")
 
 ## load the CSV file
-word.class.df <- read.table( "freqdump.csv"  , sep = "," , header = TRUE)
+word.class.df <- read.table( "dump.csv"  , sep = "," , header = TRUE)
 
 
 ## Print the summary of the variables : 
@@ -49,17 +49,19 @@ word.class.df$mins <- mins
 word.class.df$maxes <- maxs
 word.class.df$vars <- vars
 
+summary( word.class.df )
+
 # now check how the sd looks like
 hist ( sds, n =10 )
 
 # filter the rows to ones with less standard deviation 
-words_with_small_sd <-filter( word.class.df , sds<1.5 )
+words_with_small_sd <-filter( word.class.df , sds<8)
 
 # take a peek at the new data
 head ( words_with_small_sd , n = 10 )
 
 # plot the standard deviations histogram 
-hist( words_with_small_sd$sds , 150 , col = blues9  , main="Hist - per class frequency standard deviation for words with sd<1.5" , xlab = "Standard Deviation"  )
+hist( words_with_small_sd$sds , 40 , col = blues9  , main="Hist - per class frequency standard deviation for words with sd<mean(sd(i))" , xlab = "Standard Deviation"  )
 
 # plot standard deviation CDF
 cdf_p = ecdf( words_with_small_sd$sds )

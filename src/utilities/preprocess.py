@@ -8,20 +8,6 @@ import re
 import nltk
 
 
-def load_stopwords(path="stopwords/all.txt"):
-    """
-    Create a list of stopwords from the target text file
-    Stopwords will be stripped of whitespace and converted to lowercase
-
-    :param path: the path to the stopwords text file to load
-    :return: a python list containing the stopwords from the file
-    """
-    with open(path, "r") as file:
-        stopwords = list(file)
-
-    return map(lambda word: strip_punctuation(word.strip().lower()), stopwords)
-
-
 def remove_html_character_references(word):
     """
     This function will remove any instances of HTML character references from the given word.
