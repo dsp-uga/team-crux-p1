@@ -100,25 +100,20 @@ Options:
     
 * ```-o, --output <outpath/path/>```
     Path to the output directory where output file will be
-    written.  After classifying the test set, the labels will be written a file called labels.txt in
+    written.  After classifying the test set, the labels will be written a file called part-00000 in
     this directory.
     [DEFAULT: "output/"]
                         
 * ```-c, --classifier {enb, nb, majority}```
     What type of classifier to train. 
      ```enb``` = Enhanced naive bayes.  ```nb``` = basic Naive Bayes.
-    [DEFAULT: "enb"]
-    
+    [DEFAULT: "enb"]    
                         
 * ```-v, --verbose```         
     Set verbosity level.  Each additional ```-v``` raises the verbosity level by 1.
     Level 0: no command-line output.
     Level 1: status messages. 
     Level 2: Classification details.
-    
-* ```-lg, --logfile <path/to/logfile.txt>```
-    In addition to printing output to the console, it will also be logged to the provided file.
-    [DEFAULT: output\run_log.log]
     
 
 ## Running the tests
@@ -132,17 +127,34 @@ Run tests by running the following (with your conda env activated) in the projec
 
 ## Deployment
 
-TODO: notes on how to run this on a production cluster
+This repository includes a shell script [submit.sh](submit.sh) that will package the source files into an 
+[egg](http://peak.telecommunity.com/DevCenter/EasyInstall)
+and submit the pyspark job to a Google Cloud Compute cluster.  It assumes that the 
+[Google Cloud SDK](https://cloud.google.com/sdk/) is installed and on the system path.  
+You will also need to have authenticated with the gcloud SDK using the google account linked to the target cluster.
+
+The [submit.sh](submit.sh) file requires minor custom configuration.  
+The name of the target cluster should be changed to your own cluster name.
+The other program options work as expected and may be changed as desired.  
+
+To use the submission script, first activate the conda environment for the project (see Installation section for details).
+Then you can simply:
+``` ./submit.sh ```
+
+Thanks to [Chris Barrick](https://github.com/cbarrick) for his help with creating the 
+`setup.py` and `submit.sh` scripts!
 
 ## Built With
 
-* [Apache Spark](https://spark.apache.org/) - Distributed computing engine
 * [Python 3.6](https://www.python.org/)
+* [Apache Spark](https://spark.apache.org)
+* [PySpark](https://spark.apache.org/docs/0.9.0/python-programming-guide.html) - Python API for [Apache Spark](https://spark.apache.org/)
+* [Conda](https://conda.io/docs/) - Package Manager
 
 ## Contributing
 
-There are no specific guidelines for contributing as of yet.  Feel free to send a pull request if you have
-some improvement.
+There are no specific guidelines for contributing.  Feel free to send a pull request if you have
+an improvement.
 
 ## Versioning
 
@@ -164,4 +176,5 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE) f
  is responsible for the problem formulation and initial guidance towards solution methods.  He also 
  provided the very small data set included in this repository
 * A. Balucha for his [repository of stopwords](https://code.google.com/archive/p/stop-words/)
+* [Chris Barrick](https://github.com/cbarrick) for providing the setup.py and submit.sh scrips
 

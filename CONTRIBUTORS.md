@@ -4,7 +4,7 @@
     - Repository management
     - Setup instructions, Readme
     - Unit tests
-    - driver program (main.py)
+    - driver program (main.py and \_\_main__.py)
     - Misc Bugfixes
 
 * [Omid Setayeshfar](https://github.com/omid-s)
