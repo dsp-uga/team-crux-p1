@@ -2,8 +2,6 @@
 This module contains miscellaneous utility functions
 """
 
-import os
-import logging
 
 def custom_zip(rdd1, rdd2):
     """
@@ -37,29 +35,5 @@ def print_verbose(text, log_level, threshold=0):
     :return:
     """
 
-    # log the records
-    logging.info(text)
-
     if log_level >= threshold:
         print(text)
-
-
-def write_ouput_to_file(output, filename):
-    """
-    writes the output to file, if the output is supplied in hte RDD form, it'll be collected, 
-    otherwise it'll be written to file  
-    :param output: the list or RDD to be written to file  
-    :param filename:  File name to write the file to
-    :return: 
-    """
-
-    if not isinstance(output, list):
-        output = output.collect()
-
-    # ensure the ouput directory exists:
-    if not os.path.exists(os.path.dirname(filename)):
-        os.makedirs(os.path.dirname(filename))
-
-    with open(filename, "w" ) as file :
-        file.write( "\n".join(output) )
-        file.flush()

@@ -1,17 +1,23 @@
 import pyspark
 import numpy as np
-
+import csv
 from .Classifier import Classifier
 import src.utilities.preprocess as preprocess
+import math
 
-
-class NaiveBayesClassifier(Classifier):
-    def __init__(self, spark_context, stopwords=[]):
+class CosineSimilarityClassifier(Classifier):
+    def __init__(self, spark_context, stopwords=[], dump_word_in_class_Freq=None):
         """
-        This classifier using multinominal Naive Bayes to classify documents from the Reuters Corpus
+        This classifier uses a modified version of Naive Bayes to classify documents from the Reuters Corpus
+        It includes enhancements:
+            * term filtering based on variance among classes
+            * term weighting by tf-icf scores
+        See project wiki for details
+
         This classifier assumes that the program is running in an Apache Spark cluster
         :param spark_context: the Spark context object in which the RDD operations are being performed
         :param stopwords: file containing stopwords to be removed from the corpus
+        :param dump_word_in_class_Freq : an optional variable to set for the word in lcass frequency to be stored to
         """
         Classifier.__init__(self)
         self.sc = spark_context
@@ -24,8 +30,12 @@ class NaiveBayesClassifier(Classifier):
             "GCAT": 2,
             "MCAT": 3
         })
+
+        # set the path for the file which will contain the dump of word for class frequency
+        self.dump_word_in_class_Freq = dump_word_in_class_Freq
+
         # mapping from numeric index back to class label
-        self.CLASS_INDICES = self.sc.broadcast({v:k for k,v in self.CLASSES.value.items()})
+        self.CLASS_INDICES = self.sc.broadcast({v: k for k, v in self.CLASSES.value.items()})
 
         # read list of stopwords:
         self.SW = self.sc.broadcast(stopwords)
@@ -38,19 +48,20 @@ class NaiveBayesClassifier(Classifier):
         :param data: RDD containing ( document_contents, document_label ) pairs
         :return: None
         """
-        assert(isinstance(data, pyspark.RDD))
+        assert (isinstance(data, pyspark.RDD))
+        _TOTAL_DOCS = data.count()
         TOTAL_DOCS = self.sc.broadcast(data.count())
         # get the number of documents per class
         class_unit_counts = data.map(lambda x: (x[1], 1))  # (class_label, 1) tuples
         class_counts = class_unit_counts.reduceByKey(lambda a, b: a + b)
 
         # we can now calculate class probabilities
-        class_probabilities = class_counts.mapValues(lambda x: x/TOTAL_DOCS.value)
+        class_probabilities = class_counts.mapValues(lambda x: x / TOTAL_DOCS.value)
         CLASS_PROBABILITY = self.sc.broadcast(dict(class_probabilities.collect()))
 
         # tokenize and preprocess documents:
         _SW = self.SW
-        processed = data.map(lambda tuple: (tuple[1], tuple[0]) )  # temporarily swap to (class, document_contents)
+        processed = data.map(lambda tuple: (tuple[1], tuple[0]))  # temporarily swap to (class, document_contents)
         words = processed.flatMapValues(preprocess.tokenize)  # (class, word) pairs
         words = words.mapValues(preprocess.remove_html_character_references)
         words = words.mapValues(preprocess.strip_punctuation)
@@ -62,12 +73,6 @@ class NaiveBayesClassifier(Classifier):
         # extract the vocabulary size (number of unique words in the corpus)
         vocab = words.map(lambda x: x[1]).distinct()
         VOCAB_SIZE = self.sc.broadcast(vocab.count())
-
-        # we can now count the number of words (non-unique) in each class
-        class_words = words.map(lambda x: (x[0], 1))  # (class, 1) tuples for each word in the corpus
-        class_words = class_words.reduceByKey(lambda a, b: a + b)
-        # CLASS_WORD_COUNTS maps class c to the total number of words in all docs of class c
-        CLASS_WORD_COUNTS = self.sc.broadcast(dict(class_words.collect()))
 
         # now we need to count up how many times each word appears in each class
         _CLASSES = self.CLASSES
@@ -90,30 +95,28 @@ class NaiveBayesClassifier(Classifier):
         term_freqencies = words.map(_word_tuple_to_class_vec)
         term_freqencies = term_freqencies.reduceByKey(lambda a, b: a + b)  # sum up class vectors for each word
 
-        # compute conditional probabilities P(word | class)
-        def _term_freq_to_conditional_prob(x):
+
+        def filter_by_std_deviation(arr):
             """
-            Takes a (word, class_count_vector) tuple and converts it to a (word, conditional_prob_vector) tuple
-            class count vector[c] is the number of time the word appears in documents of class c
-            conditional_prob_vector[c] will be the conditional probability P( word | c )
+            Checks that the standard deviation of elements in an array is above a certain threshold
+
+            :param arr: A NumPy Array
+            :return: True if the standard deviation is above 1.8 or if one of the elements is zero, False otherwise
             """
-            LAPLACE_ESTIMATOR = 1
-            word, term_freq = x
-            term_freq = term_freq + LAPLACE_ESTIMATOR  # solves zero-frequency problem
+            THRESHOLD = 0  # magic number chosen by running some statistical procedures against a large dataset
+            return np.std(arr) >  THRESHOLD #or np.sum(arr) < 4
 
-            total_words = np.zeros(len(_CLASSES.value))
-            for class_idx in np.arange(0, len(_CLASSES.value)):
-                class_label = _CLASS_INDICES.value[class_idx]
-                total_words_in_class = CLASS_WORD_COUNTS.value[class_label]
-                total_words[class_idx] = total_words_in_class
+        # find words with equal frequency in all classes
+        # Note: this is a form of feature selection - we remove meaningless features - See project wiki for more info
+        # TODO: sections should be added to wiki
+        term_freqencies = term_freqencies.filter(lambda x: filter_by_std_deviation(x[1]))
 
-            total_words = total_words + LAPLACE_ESTIMATOR*VOCAB_SIZE.value  # correct for addition of laplace estimator
+        # count all words
+        power_two = term_freqencies.map(  lambda  x: x[1]*x[1]).reduce( lambda a,b : a+b)
+        power_two = np.sqrt( power_two )
+        power_two = self.sc.broadcast( power_two )
 
-            conditional_probability_vector = term_freq / total_words
-            return (word, conditional_probability_vector)
-
-        conditional_term_probabilities = term_freqencies.map(_term_freq_to_conditional_prob)
-        CONDITIONAL_TERM_PROBABILITY = self.sc.broadcast(dict(conditional_term_probabilities.collect()))
+        TERMS_FREQUENCY = self.sc.broadcast(dict(term_freqencies.collect()))
 
         # finally, we can build the classification function:
         def _classify_document(document):
@@ -125,28 +128,32 @@ class NaiveBayesClassifier(Classifier):
             :param document: the document to classify
             :return: the label of the predicted class
             """
-            num_classes = len(_CLASSES.value)
 
-            posterior = np.zeros(num_classes)
+            # for each word, add log of word probability (and make them unique)
+            tokens =   preprocess.tokenize(document)
 
-            # vector of class probabilities
-            marginals = [CLASS_PROBABILITY.value[class_label] for class_label in list(_CLASSES.value.keys())]
+            tokens = [ preprocess.strip_punctuation(preprocess.remove_html_character_references(token)) for token in tokens  ]
 
-            posterior += np.log(marginals)
+            tokens_distinct  = list( set( tokens ) )
 
-            # for each word, add log of word probability
-            tokens = preprocess.tokenize(document)
-            for token in tokens:
-                word = preprocess.remove_html_character_references(token)
-                word = preprocess.strip_punctuation(word).lower()
-                if word not in _SW.value and len(word) > 0:  # then it's actually a word we want to consider
-                    # if we have seen this word in training
-                    if word in CONDITIONAL_TERM_PROBABILITY.value:
-                        conditional_prob = CONDITIONAL_TERM_PROBABILITY.value[word]
-                        posterior += np.log(conditional_prob)
-                    # if we haven't see the word in training, we can ignore it
 
-            class_index = np.argmax(posterior)  # index of the class with the highest posterior probability
+            sim_nominator  = np.zeros( len(_CLASS_INDICES.value) )
+
+            sigma_Bi = 0
+
+            sigma_AiBi =0
+
+            for word in tokens_distinct :
+                count = tokens.count(word)
+                sigma_Bi += (count*count )
+
+                if word in TERMS_FREQUENCY.value.keys():
+                    sigma_AiBi += TERMS_FREQUENCY.value[word] * count
+
+            distances =   sigma_AiBi   / (  power_two.value * math.sqrt( sigma_Bi )  )
+
+
+            class_index = np.argmax(distances)  # index of the class with the highest posterior probability
             class_label = _CLASS_INDICES.value[class_index]
             return class_label
 
