@@ -16,7 +16,10 @@ def main(args):
     """ args will be a dictionary of command-line arguments as parsed by argparser"""
 
     configuration = SparkConf().setAppName("team-crux-p1")\
-                    .set('spark.hadoop.validateOutputSpecs', "false")
+                    .set('spark.hadoop.validateOutputSpecs', "false") \
+                    .set("spark.driver.maxResultSize", "3g") \
+                    .set("spark.driver.cores", "2") \
+
     sc = SparkContext.getOrCreate(configuration)
 
     stopwords = sc.textFile(args.stopwords)  # rdd where each entry is a stopword

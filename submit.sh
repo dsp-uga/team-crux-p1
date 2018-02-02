@@ -2,7 +2,7 @@ python ./setup.py bdist_egg
 
 
 gcloud dataproc jobs submit pyspark \
-    --cluster team-crux-p1 \
+    --cluster cluster-4dd3 \
     --py-files ./dist/team_crux_p1-1.0.0.dev0-py3.6.egg \
     ./main.py \
     -- \
