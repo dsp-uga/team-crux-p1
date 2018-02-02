@@ -104,10 +104,11 @@ class EnhancedNaiveBayesClassifier(Classifier):
             tficf score = tf * icf
             """
             term = x[0]
-            frequencies = x[1] + 1
-            tf = np.log(frequencies)
-            nj = np.sum(frequencies)  # number of documents in which the word appears
-            icf = np.log((1 + _TOTAL_DOCS) / (1 + nj))
+            frequencies = x[1]
+            tf = np.log(frequencies+1)
+            N = len(_CLASSES.value)
+            nt = np.count_nonzero(frequencies)
+            icf = N / nt
             tficf = tf * icf
             return (term, tficf)
 

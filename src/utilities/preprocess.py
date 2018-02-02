@@ -5,7 +5,6 @@ Contains functions which are helpful for preprocessing text
 
 import string
 import re
-import nltk
 
 
 def remove_html_character_references(word):
