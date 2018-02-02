@@ -13,6 +13,8 @@
     - Statistical scripts
     - Feature selection method used in enhanced Naive Bayes classifier
     - Cosine Similarity Classifier
+    - Misc Bugfixes
+    - contributions to project wiki
 
 * [Vinay Kumar Bingi](https://github.com/vinayawsm)
     - tf-icf scoring improvement to Naive Bayes
