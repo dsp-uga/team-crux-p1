@@ -19,6 +19,7 @@ on large datasets.
 
 The enhanced naive bayes classifier includes several improvements:
 * feature selection that removes terms with similar frequency across all four classes
+* features include both terms and bi-grams
 * term-frequency inverse-class-frequency (TF-ICF) weighting of words
 * Various performance improvements
 
